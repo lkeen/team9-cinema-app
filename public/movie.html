@@ -1,0 +1,246 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Movie Details</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f0f0f0;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #007bff;
+        text-decoration: none;
+        font-size: 15px;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+      .movie-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 30px;
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+      }
+      .movie-poster {
+        width: 200px;
+        min-width: 200px;
+        height: 280px;
+        object-fit: cover;
+        border-radius: 6px;
+        background: #ccc;
+      }
+      .movie-info {
+        flex: 1;
+      }
+      .movie-title {
+        font-size: 28px;
+        font-weight: bold;
+        margin: 0 0 10px;
+        color: #222;
+      }
+      .badges {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+      }
+      .badge-rating {
+        background: #007bff;
+        color: white;
+      }
+      .badge-genre {
+        background: #6c757d;
+        color: white;
+      }
+      .badge-status {
+        background: #28a745;
+        color: white;
+      }
+      .badge-status.coming-soon {
+        background: #fd7e14;
+      }
+      .movie-description {
+        font-size: 15px;
+        color: #444;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+      .release-date {
+        font-size: 14px;
+        color: #666;
+      }
+      .section {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+      }
+      .section h2 {
+        font-size: 20px;
+        color: #333;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+        margin: 0 0 20px;
+      }
+      /* 2.2: Embedded trailer */
+      .trailer-wrapper {
+        position: relative;
+        padding-bottom: 56.25%;
+        height: 0;
+        overflow: hidden;
+        border-radius: 6px;
+      }
+      .trailer-wrapper iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 6px;
+      }
+      /* 2.2: Hardcoded showtimes */
+      .showtimes {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .showtime-btn {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 15px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .showtime-btn:hover {
+        background: #0056b3;
+      }
+      .error-msg {
+        text-align: center;
+        padding: 40px;
+        font-size: 18px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <a class="back-link" href="index.html">&larr; Back to Home</a>
+      <div id="content">Loading...</div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const movieId = params.get("id");
+
+      if (!movieId) {
+        document.getElementById("content").innerHTML =
+          '<div class="error-msg">No movie selected.</div>';
+      } else {
+        fetch("/api/movies/" + movieId)
+          .then((res) => {
+            if (!res.ok) throw new Error("Movie not found");
+            return res.json();
+          })
+          .then((movie) => renderMovie(movie))
+          .catch(() => {
+            document.getElementById("content").innerHTML =
+              '<div class="error-msg">Movie not found.</div>';
+          });
+      }
+
+      function renderMovie(m) {
+        const statusClass = m.status === "Coming Soon" ? "coming-soon" : "";
+
+        // 2.2: Hardcoded showtimes
+        const showtimes = ["2:00 PM", "5:00 PM", "8:00 PM"];
+        const showtimeButtons = showtimes
+          .map(
+            (t) =>
+              `<button class="showtime-btn" onclick="goToBooking(${m.movie_id}, '${t}')">${t}</button>`,
+          )
+          .join("");
+
+        // Build trailer embed — use iframe if URL contains /embed/, else show link
+        let trailerHtml;
+        if (m.trailer && m.trailer.includes("/embed/")) {
+          trailerHtml = `
+            <div class="trailer-wrapper">
+              <iframe src="${m.trailer}" allowfullscreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+              </iframe>
+            </div>`;
+        } else if (m.trailer) {
+          trailerHtml = `<a href="${m.trailer}" target="_blank">Watch Trailer</a>`;
+        } else {
+          trailerHtml = "<p>No trailer available.</p>";
+        }
+
+        document.getElementById("content").innerHTML = `
+          <div class="movie-header">
+            <img class="movie-poster" src="${m.poster}" alt="${m.title} poster"
+              onerror="this.style.background='#ccc';this.removeAttribute('src')">
+            <div class="movie-info">
+              <h1 class="movie-title">${m.title}</h1>
+              <div class="badges">
+                <span class="badge badge-rating">${m.rating || "NR"}</span>
+                <span class="badge badge-genre">${m.genre}</span>
+                <span class="badge badge-status ${statusClass}">${m.status}</span>
+              </div>
+              <p class="movie-description">${m.description}</p>
+              <p class="release-date">Release Date: ${formatDate(m.release_date)}</p>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Trailer</h2>
+            ${trailerHtml}
+          </div>
+
+          <div class="section">
+            <h2>Showtimes</h2>
+            <div class="showtimes">${showtimeButtons}</div>
+          </div>
+        `;
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return "TBD";
+        const d = new Date(dateStr);
+        return d.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          timeZone: "UTC",
+        });
+      }
+
+      function goToBooking(movieId, showtime) {
+        window.location.href =
+          "booking.html?id=" + movieId + "&showtime=" + encodeURIComponent(showtime);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Home Page</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f0f0f0;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      h1 {
+        text-align: center;
+        color: #333;
+      }
+      h2 {
+        color: #444;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+        margin-top: 30px;
+      }
+      .movie-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+      }
+      .movie-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+      .movie-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+      .movie-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .movie-genre {
+        color: #666;
+        margin-bottom: 5px;
+      }
+      .movie-rating {
+        display: inline-block;
+        padding: 3px 8px;
+        background: #007bff;
+        color: white;
+        border-radius: 3px;
+        font-size: 12px;
+      }
+      .search-box {
+        text-align: center;
+        margin: 20px 0;
+      }
+      .search-box input {
+        padding: 10px;
+        width: 300px;
+        font-size: 16px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .search-box button {
+        padding: 10px 20px;
+        font-size: 16px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 10px;
+      }
+      .search-box button:hover {
+        background: #0056b3;
+      }
+      .no-results {
+        color: #666;
+        font-style: italic;
+        padding: 15px;
+      }
+      .filter-bar {
+        text-align: center;
+        margin: 10px 0 20px;
+      }
+      .filter-bar label {
+        font-size: 15px;
+        margin-right: 6px;
+        color: #444;
+      }
+      .filter-bar select {
+        padding: 8px 12px;
+        font-size: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-right: 16px;
+        cursor: pointer;
+      }
+      .filter-bar select:disabled {
+        background: #eee;
+        cursor: not-allowed;
+        color: #999;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Cinema E-Booking System</h1>
+
+      <!-- 2.3: Search by title -->
+      <div class="search-box">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search movies by title..."
+        />
+        <button onclick="searchMovies()">Search</button>
+        <button onclick="clearSearch()">Clear</button>
+      </div>
+
+      <!-- 2.4: Filter by genre (active) and show date (UI only) -->
+      <div class="filter-bar">
+        <label for="genreFilter">Genre:</label>
+        <select id="genreFilter" onchange="applyFilters()">
+          <option value="">All Genres</option>
+          <option value="Animation">Animation</option>
+          <option value="Comedy">Comedy</option>
+          <option value="Drama">Drama</option>
+          <option value="Horror">Horror</option>
+          <option value="Romance">Romance</option>
+        </select>
+
+        <label for="dateFilter">Show Date:</label>
+        <select id="dateFilter" disabled title="Coming soon">
+          <option value="">All Dates</option>
+        </select>
+      </div>
+
+      <!-- 2.1: Dynamically populated from DB, split by status -->
+      <h2>Now Playing</h2>
+      <div id="nowPlaying" class="movie-grid">Loading...</div>
+
+      <h2>Coming Soon</h2>
+      <div id="comingSoon" class="movie-grid">Loading...</div>
+    </div>
+
+    <script>
+      window.onload = function () {
+        fetchMovies();
+      };
+
+      // 2.4: Apply both filters together
+      function applyFilters() {
+        const searchTerm = document.getElementById("searchInput").value.trim();
+        const genre = document.getElementById("genreFilter").value;
+        fetchMovies(searchTerm, genre);
+      }
+
+      // 2.1, 2.3, 2.4: Fetch movies from backend with optional search and genre
+      function fetchMovies(searchTerm = "", genre = "") {
+        let url = "/api/movies";
+        const params = [];
+        if (searchTerm) params.push("q=" + encodeURIComponent(searchTerm));
+        if (genre) params.push("genre=" + encodeURIComponent(genre));
+        if (params.length > 0) url += "?" + params.join("&");
+
+        fetch(url)
+          .then((response) => response.json())
+          .then((items) => {
+            const nowShowing = items.filter((m) => m.status === "Now Playing");
+            const laterShows = items.filter((m) => m.status === "Coming Soon");
+
+            displayMovies("nowPlaying", nowShowing);
+            displayMovies("comingSoon", laterShows);
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            document.getElementById("nowPlaying").innerHTML =
+              "Error loading movies";
+          });
+      }
+
+      function displayMovies(elementId, movies) {
+        if (movies.length === 0) {
+          // 2.3: Appropriate message when no matches found
+          document.getElementById(elementId).innerHTML =
+            '<div class="no-results">No movies found.</div>';
+          return;
+        }
+
+        document.getElementById(elementId).innerHTML = movies
+          .map(
+            (m) => `
+            <div class="movie-card" onclick="viewMovie(${m.movie_id})">
+              <div class="movie-title">${m.title}</div>
+              <div class="movie-genre">${m.genre}</div>
+              <span class="movie-rating">${m.rating || "NR"}</span>
+            </div>
+          `,
+          )
+          .join("");
+      }
+
+      function searchMovies() {
+        applyFilters();
+      }
+
+      function clearSearch() {
+        document.getElementById("searchInput").value = "";
+        document.getElementById("genreFilter").value = "";
+        fetchMovies();
+      }
+
+      function viewMovie(movieId) {
+        window.location.href = `movie.html?id=${movieId}`;
+      }
+
+      // 2.3: Allow pressing Enter to trigger search
+      document
+        .getElementById("searchInput")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            applyFilters();
+          }
+        });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "team9-cinema-app",
+  "version": "1.0.0",
+  "description": "Cinema E-Booking System - Sprint 1",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "express": "^4.18.2",
+    "mysql2": "^3.6.0"
+  }
+}

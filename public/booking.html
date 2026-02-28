@@ -1,0 +1,499 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Book Tickets</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f0f0f0;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #007bff;
+        text-decoration: none;
+        font-size: 15px;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+      h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 24px;
+      }
+      .section {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 24px;
+      }
+      .section h2 {
+        font-size: 20px;
+        color: #333;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+        margin: 0 0 20px;
+      }
+
+      /* Booking details */
+      .booking-summary {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .booking-detail {
+        background: #f8f9fa;
+        padding: 12px 20px;
+        border-radius: 6px;
+        border-left: 4px solid #007bff;
+      }
+      .booking-detail .label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .booking-detail .value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #222;
+        margin-top: 4px;
+      }
+
+      /* Ticket rows */
+      .ticket-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .ticket-row:last-child {
+        border-bottom: none;
+      }
+      .ticket-type {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        min-width: 80px;
+      }
+      .ticket-price {
+        color: #666;
+        font-size: 14px;
+        min-width: 80px;
+      }
+      .qty-control {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .qty-btn {
+        width: 32px;
+        height: 32px;
+        border: 2px solid #007bff;
+        background: white;
+        color: #007bff;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        line-height: 1;
+      }
+      .qty-btn:hover {
+        background: #007bff;
+        color: white;
+      }
+      .qty-display {
+        font-size: 18px;
+        font-weight: bold;
+        min-width: 24px;
+        text-align: center;
+      }
+      .ticket-subtotal {
+        font-size: 15px;
+        font-weight: 600;
+        min-width: 70px;
+        text-align: right;
+        color: #333;
+      }
+
+      /* Seat map */
+      .screen {
+        background: #007bff;
+        color: white;
+        text-align: center;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 28px;
+        font-weight: bold;
+        letter-spacing: 3px;
+        font-size: 13px;
+      }
+      .seat-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+      }
+      .seat-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .row-label {
+        width: 20px;
+        text-align: center;
+        font-weight: bold;
+        color: #666;
+        font-size: 14px;
+        margin-right: 4px;
+      }
+      .seat {
+        width: 32px;
+        height: 28px;
+        border-radius: 6px 6px 2px 2px;
+        cursor: pointer;
+        border: none;
+        font-size: 11px;
+        transition: all 0.15s;
+      }
+      .seat.available {
+        background: #e9ecef;
+        color: #555;
+      }
+      .seat.available:hover {
+        background: #007bff;
+        color: white;
+        transform: scale(1.1);
+      }
+      .seat.selected {
+        background: #28a745;
+        color: white;
+      }
+      .seat.occupied {
+        background: #adb5bd;
+        color: #888;
+        cursor: not-allowed;
+      }
+      .seat-gap {
+        width: 18px;
+      }
+      .legend {
+        display: flex;
+        gap: 24px;
+        margin-top: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #555;
+      }
+      .legend-swatch {
+        width: 24px;
+        height: 20px;
+        border-radius: 4px 4px 2px 2px;
+      }
+
+      /* Order summary */
+      .order-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        font-size: 15px;
+        color: #555;
+        border-bottom: 1px solid #eee;
+      }
+      .order-row:last-child {
+        border-bottom: none;
+      }
+      .order-total {
+        display: flex;
+        justify-content: space-between;
+        padding: 14px 0 0;
+        font-size: 20px;
+        font-weight: bold;
+        color: #222;
+        border-top: 2px solid #333;
+        margin-top: 10px;
+      }
+      .checkout-btn {
+        width: 100%;
+        padding: 14px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: background 0.2s;
+      }
+      .checkout-btn:hover:not(:disabled) {
+        background: #0056b3;
+      }
+      .checkout-btn:disabled {
+        background: #adb5bd;
+        cursor: not-allowed;
+      }
+      .checkout-hint {
+        text-align: center;
+        font-size: 13px;
+        color: #888;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <a class="back-link" href="javascript:history.back()">&#8592; Back</a>
+      <h1>Book Tickets</h1>
+
+      <!-- 2.5: Movie and showtime details -->
+      <div class="section">
+        <h2>Booking Details</h2>
+        <div class="booking-summary">
+          <div class="booking-detail">
+            <div class="label">Movie</div>
+            <div class="value" id="movieTitle">Loading...</div>
+          </div>
+          <div class="booking-detail">
+            <div class="label">Showtime</div>
+            <div class="value" id="showtime">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.5: Ticket quantity inputs with price per category -->
+      <div class="section">
+        <h2>Tickets</h2>
+        <div class="ticket-row">
+          <span class="ticket-type">Adult</span>
+          <span class="ticket-price">$12.00 each</span>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty('adult', -1)">&#8722;</button>
+            <span class="qty-display" id="qty-adult">0</span>
+            <button class="qty-btn" onclick="changeQty('adult', 1)">+</button>
+          </div>
+          <span class="ticket-subtotal" id="sub-adult">$0.00</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-type">Child</span>
+          <span class="ticket-price">$8.00 each</span>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty('child', -1)">&#8722;</button>
+            <span class="qty-display" id="qty-child">0</span>
+            <button class="qty-btn" onclick="changeQty('child', 1)">+</button>
+          </div>
+          <span class="ticket-subtotal" id="sub-child">$0.00</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-type">Senior</span>
+          <span class="ticket-price">$10.00 each</span>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty('senior', -1)">&#8722;</button>
+            <span class="qty-display" id="qty-senior">0</span>
+            <button class="qty-btn" onclick="changeQty('senior', 1)">+</button>
+          </div>
+          <span class="ticket-subtotal" id="sub-senior">$0.00</span>
+        </div>
+      </div>
+
+      <!-- 2.5: Seating layout with selectable seats -->
+      <div class="section">
+        <h2>Select Seats</h2>
+        <div class="screen">SCREEN</div>
+        <div class="seat-grid" id="seatGrid"></div>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-swatch" style="background: #e9ecef"></div>
+            Available
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background: #28a745"></div>
+            Selected
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background: #adb5bd"></div>
+            Occupied
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.5: Order summary -->
+      <div class="section">
+        <h2>Order Summary</h2>
+        <div id="orderLines">
+          <div class="order-row" style="color: #999">No tickets selected.</div>
+        </div>
+        <div class="order-total">
+          <span>Total</span>
+          <span id="grandTotal">$0.00</span>
+        </div>
+        <button class="checkout-btn" id="checkoutBtn" disabled
+          onclick="alert('Checkout will be available in a future sprint!')">
+          Proceed to Checkout
+        </button>
+        <p class="checkout-hint" id="checkoutHint">
+          Select tickets and matching seats to continue.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // Read URL params
+      const params = new URLSearchParams(window.location.search);
+      const movieId = params.get("id");
+      const showtime = params.get("showtime");
+
+      document.getElementById("showtime").textContent = showtime || "—";
+
+      if (movieId) {
+        fetch("/api/movies/" + movieId)
+          .then((res) => res.json())
+          .then((m) => {
+            document.getElementById("movieTitle").textContent = m.title;
+            document.title = "Book — " + m.title;
+          })
+          .catch(() => {
+            document.getElementById("movieTitle").textContent = "Unknown Movie";
+          });
+      } else {
+        document.getElementById("movieTitle").textContent = "Unknown Movie";
+      }
+
+      // Ticket logic
+      const prices = { adult: 12, child: 8, senior: 10 };
+      const qty = { adult: 0, child: 0, senior: 0 };
+
+      function changeQty(type, delta) {
+        qty[type] = Math.max(0, qty[type] + delta);
+        document.getElementById("qty-" + type).textContent = qty[type];
+        document.getElementById("sub-" + type).textContent =
+          "$" + (qty[type] * prices[type]).toFixed(2);
+        updateSummary();
+      }
+
+      function totalTickets() {
+        return qty.adult + qty.child + qty.senior;
+      }
+
+      // Seat map
+      const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+      const COLS = 10;
+
+      // Hardcoded occupied seats for prototype
+      const occupied = new Set([
+        "A1", "A2", "A3", "B5", "B6", "C3", "C4", "C5",
+        "D7", "D8", "D9", "E2", "E3", "F6", "F7",
+        "G1", "G2", "G8", "H4", "H5", "H6",
+      ]);
+
+      const selectedSeats = new Set();
+
+      function buildSeatGrid() {
+        const grid = document.getElementById("seatGrid");
+        for (const row of ROWS) {
+          const rowDiv = document.createElement("div");
+          rowDiv.className = "seat-row";
+
+          const label = document.createElement("div");
+          label.className = "row-label";
+          label.textContent = row;
+          rowDiv.appendChild(label);
+
+          for (let col = 1; col <= COLS; col++) {
+            // Aisle gap between columns 5 and 6
+            if (col === 6) {
+              const gap = document.createElement("div");
+              gap.className = "seat-gap";
+              rowDiv.appendChild(gap);
+            }
+            const seatId = row + col;
+            const btn = document.createElement("button");
+            btn.className = "seat " + (occupied.has(seatId) ? "occupied" : "available");
+            btn.textContent = col;
+            btn.dataset.seat = seatId;
+            btn.disabled = occupied.has(seatId);
+            btn.onclick = () => toggleSeat(btn, seatId);
+            rowDiv.appendChild(btn);
+          }
+          grid.appendChild(rowDiv);
+        }
+      }
+
+      function toggleSeat(btn, seatId) {
+        if (selectedSeats.has(seatId)) {
+          selectedSeats.delete(seatId);
+          btn.className = "seat available";
+        } else {
+          selectedSeats.add(seatId);
+          btn.className = "seat selected";
+        }
+        updateSummary();
+      }
+
+      function updateSummary() {
+        const lines = [];
+        let total = 0;
+
+        for (const [type, count] of Object.entries(qty)) {
+          if (count > 0) {
+            const sub = count * prices[type];
+            total += sub;
+            const label = type.charAt(0).toUpperCase() + type.slice(1);
+            lines.push(
+              `<div class="order-row"><span>${label} &times; ${count}</span><span>$${sub.toFixed(2)}</span></div>`
+            );
+          }
+        }
+
+        if (selectedSeats.size > 0) {
+          lines.push(
+            `<div class="order-row"><span>Seats: ${[...selectedSeats].sort().join(", ")}</span><span></span></div>`
+          );
+        }
+
+        if (lines.length === 0) {
+          lines.push('<div class="order-row" style="color:#999">No tickets selected.</div>');
+        }
+
+        document.getElementById("orderLines").innerHTML = lines.join("");
+        document.getElementById("grandTotal").textContent = "$" + total.toFixed(2);
+
+        const tickets = totalTickets();
+        const seats = selectedSeats.size;
+        const btn = document.getElementById("checkoutBtn");
+        const hint = document.getElementById("checkoutHint");
+
+        btn.disabled = tickets === 0 || seats !== tickets;
+
+        if (tickets === 0) {
+          hint.textContent = "Select tickets and matching seats to continue.";
+        } else if (seats < tickets) {
+          hint.textContent = `Please select ${tickets - seats} more seat(s).`;
+        } else if (seats > tickets) {
+          hint.textContent = `Too many seats selected. Deselect ${seats - tickets} seat(s).`;
+        } else {
+          hint.textContent = "";
+        }
+      }
+
+      buildSeatGrid();
+    </script>
+  </body>
+</html>

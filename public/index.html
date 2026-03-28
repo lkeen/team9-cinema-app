@@ -34,6 +34,7 @@
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         cursor: pointer;
         transition: transform 0.2s;
+        position: relative;
       }
       .movie-card:hover {
         transform: translateY(-5px);
@@ -43,6 +44,7 @@
         font-size: 18px;
         font-weight: bold;
         margin-bottom: 5px;
+        padding-right: 30px;
       }
       .movie-genre {
         color: #666;
@@ -107,9 +109,29 @@
         cursor: not-allowed;
         color: #999;
       }
+      .heart-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: none;
+        border: none;
+        font-size: 22px;
+        cursor: pointer;
+        color: #ccc;
+        transition: color 0.2s;
+        padding: 0;
+        line-height: 1;
+      }
+      .heart-btn:hover {
+        color: #dc3545;
+      }
+      .heart-btn.favorited {
+        color: #dc3545;
+      }
     </style>
   </head>
   <body>
+    <script src="nav.js"></script>
     <div class="container">
       <h1>Cinema E-Booking System</h1>
       <!-- 2.3: Search by title -->
@@ -150,9 +172,27 @@
     </div>
 
     <script>
+      let favoriteIds = [];
+      let isLoggedIn = !!localStorage.getItem('token');
+
       window.onload = function () {
-        fetchMovies();
+        if (isLoggedIn) {
+          loadFavoriteIds().then(() => fetchMovies());
+        } else {
+          fetchMovies();
+        }
       };
+
+      async function loadFavoriteIds() {
+        try {
+          const res = await authFetch('/api/favorites/ids');
+          if (res && res.ok) {
+            favoriteIds = await res.json();
+          }
+        } catch (err) {
+          console.error('Failed to load favorites:', err);
+        }
+      }
 
       // 2.4: Apply both filters together
       function applyFilters() {
@@ -197,6 +237,7 @@
           .map(
             (m) => `
             <div class="movie-card" onclick="viewMovie(${m.movie_id})">
+              ${isLoggedIn ? `<button class="heart-btn ${favoriteIds.includes(m.movie_id) ? 'favorited' : ''}" onclick="toggleFavorite(event, ${m.movie_id})" title="Toggle favorite">${favoriteIds.includes(m.movie_id) ? '&#9829;' : '&#9825;'}</button>` : ''}
               <div class="movie-title">${m.title}</div>
               <div class="movie-genre">${m.genre}</div>
               <span class="movie-rating">${m.rating || "NR"}</span>
@@ -204,6 +245,30 @@
           `,
           )
           .join("");
+      }
+
+      async function toggleFavorite(event, movieId) {
+        event.stopPropagation();
+
+        const isFavorited = favoriteIds.includes(movieId);
+        const method = isFavorited ? 'DELETE' : 'POST';
+
+        try {
+          const res = await authFetch(`/api/favorites/${movieId}`, { method });
+          if (!res) return;
+
+          if (res.ok) {
+            if (isFavorited) {
+              favoriteIds = favoriteIds.filter(id => id !== movieId);
+            } else {
+              favoriteIds.push(movieId);
+            }
+            // Re-render
+            applyFilters();
+          }
+        } catch (err) {
+          console.error('Toggle favorite error:', err);
+        }
       }
 
       function searchMovies() {

@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Verify Email - Cinema E-Booking</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+      .container { max-width: 500px; margin: 60px auto; text-align: center; }
+      .card { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+      .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      .success { color: #28a745; }
+      .error { color: #dc3545; }
+      h2 { margin-bottom: 15px; }
+      p { color: #666; }
+      .link { margin-top: 20px; }
+      .link a { color: #007bff; text-decoration: none; }
+      .link a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <script src="nav.js"></script>
+    <div class="container">
+      <div class="card">
+        <div id="loading">
+          <div class="spinner"></div>
+          <p>Verifying your email...</p>
+        </div>
+        <div id="result" style="display:none;"></div>
+      </div>
+    </div>
+
+    <script>
+      (async function() {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+
+        if (!token) {
+          showResult(false, 'No verification token provided.');
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/verify-email?token=' + encodeURIComponent(token));
+          const data = await res.json();
+
+          if (res.ok) {
+            showResult(true, data.message);
+          } else {
+            showResult(false, data.error);
+          }
+        } catch (err) {
+          showResult(false, 'Verification failed. Please try again.');
+        }
+      })();
+
+      function showResult(success, message) {
+        document.getElementById('loading').style.display = 'none';
+        const result = document.getElementById('result');
+        result.style.display = 'block';
+        result.innerHTML = `
+          <h2 class="${success ? 'success' : 'error'}">${success ? 'Email Verified!' : 'Verification Failed'}</h2>
+          <p>${message}</p>
+          <div class="link">
+            <a href="${success ? 'login.html' : 'register.html'}">${success ? 'Go to Login' : 'Go to Registration'}</a>
+          </div>
+        `;
+      }
+    </script>
+  </body>
+</html>

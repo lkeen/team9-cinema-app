@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Register - Cinema E-Booking</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+      .container { max-width: 700px; margin: 0 auto; }
+      h1 { text-align: center; color: #333; }
+      .form-section { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+      .form-section h2 { font-size: 18px; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin: 0 0 15px; }
+      .form-group { margin-bottom: 15px; }
+      .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #444; font-size: 14px; }
+      .required::after { content: " *"; color: #dc3545; }
+      .form-group input, .form-group select { width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+      .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+      .btn { display: block; width: 100%; padding: 12px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+      .btn:hover { background: #0056b3; }
+      .error-msg { color: #dc3545; font-size: 14px; margin-top: 5px; display: none; }
+      .success-msg { color: #28a745; text-align: center; font-size: 16px; display: none; }
+      .alert { padding: 12px; border-radius: 4px; margin-bottom: 15px; display: none; }
+      .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+      .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+      .pw-requirements { font-size: 12px; color: #666; margin-top: 4px; }
+      .pw-requirements span { display: block; }
+      .pw-requirements span.met { color: #28a745; }
+      .pw-requirements span.unmet { color: #dc3545; }
+      .login-link { text-align: center; margin-top: 15px; }
+      .login-link a { color: #007bff; text-decoration: none; }
+      .login-link a:hover { text-decoration: underline; }
+      .checkbox-group { display: flex; align-items: center; gap: 8px; }
+      .checkbox-group input { width: auto; }
+    </style>
+  </head>
+  <body>
+    <script src="nav.js"></script>
+    <div class="container">
+      <h1>Create Account</h1>
+
+      <div id="alertBox" class="alert"></div>
+
+      <form id="registerForm" onsubmit="handleRegister(event)">
+        <!-- Personal Info -->
+        <div class="form-section">
+          <h2>Personal Information</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="required" for="firstName">First Name</label>
+              <input type="text" id="firstName" required>
+            </div>
+            <div class="form-group">
+              <label class="required" for="lastName">Last Name</label>
+              <input type="text" id="lastName" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="required" for="email">Email</label>
+            <input type="email" id="email" required>
+          </div>
+          <div class="form-group">
+            <label class="required" for="password">Password</label>
+            <input type="password" id="password" required oninput="checkPasswordStrength()">
+            <div class="pw-requirements" id="pwReqs">
+              <span id="pw-length">At least 8 characters</span>
+              <span id="pw-upper">1 uppercase letter</span>
+              <span id="pw-lower">1 lowercase letter</span>
+              <span id="pw-number">1 number</span>
+              <span id="pw-special">1 special character</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="required" for="confirmPassword">Confirm Password</label>
+            <input type="password" id="confirmPassword" required oninput="checkPasswordMatch()">
+            <div class="error-msg" id="matchError">Passwords do not match</div>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone">
+          </div>
+          <div class="form-group checkbox-group">
+            <input type="checkbox" id="promotionOptIn">
+            <label for="promotionOptIn" style="margin-bottom:0;font-weight:normal;">Subscribe to promotional emails</label>
+          </div>
+        </div>
+
+        <!-- Optional Address -->
+        <div class="form-section">
+          <h2>Address (Optional)</h2>
+          <div class="form-group">
+            <label for="street">Street</label>
+            <input type="text" id="street">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="city">City</label>
+              <input type="text" id="city">
+            </div>
+            <div class="form-group">
+              <label for="state">State</label>
+              <input type="text" id="state">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="zipCode">Zip Code</label>
+            <input type="text" id="zipCode">
+          </div>
+        </div>
+
+        <!-- Optional Payment Card -->
+        <div class="form-section">
+          <h2>Payment Card (Optional)</h2>
+          <div class="form-group">
+            <label for="cardType">Card Type</label>
+            <select id="cardType">
+              <option value="">Select...</option>
+              <option value="Visa">Visa</option>
+              <option value="Mastercard">Mastercard</option>
+              <option value="Amex">American Express</option>
+              <option value="Discover">Discover</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cardNumber">Card Number</label>
+            <input type="text" id="cardNumber" maxlength="19" placeholder="1234 5678 9012 3456">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="expiryDate">Expiry Date</label>
+              <input type="text" id="expiryDate" placeholder="MM/YY" maxlength="5">
+            </div>
+            <div class="form-group">
+              <label for="nameOnCard">Name on Card</label>
+              <input type="text" id="nameOnCard">
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn">Register</button>
+      </form>
+
+      <div class="login-link">
+        Already have an account? <a href="login.html">Log in</a>
+      </div>
+    </div>
+
+    <script>
+      function checkPasswordStrength() {
+        const pw = document.getElementById('password').value;
+        const checks = {
+          'pw-length': pw.length >= 8,
+          'pw-upper': /[A-Z]/.test(pw),
+          'pw-lower': /[a-z]/.test(pw),
+          'pw-number': /[0-9]/.test(pw),
+          'pw-special': /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw)
+        };
+        for (const [id, met] of Object.entries(checks)) {
+          const el = document.getElementById(id);
+          el.className = met ? 'met' : 'unmet';
+        }
+      }
+
+      function checkPasswordMatch() {
+        const pw = document.getElementById('password').value;
+        const cpw = document.getElementById('confirmPassword').value;
+        const err = document.getElementById('matchError');
+        err.style.display = (cpw && pw !== cpw) ? 'block' : 'none';
+      }
+
+      function showAlert(message, type) {
+        const box = document.getElementById('alertBox');
+        box.textContent = message;
+        box.className = 'alert alert-' + type;
+        box.style.display = 'block';
+        window.scrollTo(0, 0);
+      }
+
+      async function handleRegister(e) {
+        e.preventDefault();
+
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (password !== confirmPassword) {
+          showAlert('Passwords do not match.', 'error');
+          return;
+        }
+
+        // Client-side password validation
+        const pwChecks = [
+          password.length >= 8,
+          /[A-Z]/.test(password),
+          /[a-z]/.test(password),
+          /[0-9]/.test(password),
+          /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+        ];
+        if (pwChecks.includes(false)) {
+          showAlert('Password must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special character.', 'error');
+          return;
+        }
+
+        const body = {
+          firstName: document.getElementById('firstName').value.trim(),
+          lastName: document.getElementById('lastName').value.trim(),
+          email: document.getElementById('email').value.trim(),
+          password: password,
+          confirmPassword: confirmPassword,
+          phone: document.getElementById('phone').value.trim() || undefined,
+          promotionOptIn: document.getElementById('promotionOptIn').checked
+        };
+
+        // Include address if any field is filled
+        const street = document.getElementById('street').value.trim();
+        const city = document.getElementById('city').value.trim();
+        const state = document.getElementById('state').value.trim();
+        const zipCode = document.getElementById('zipCode').value.trim();
+        if (street || city || state || zipCode) {
+          body.address = { street, city, state, zipCode };
+        }
+
+        // Include card if any field is filled
+        const cardType = document.getElementById('cardType').value;
+        const cardNumber = document.getElementById('cardNumber').value.trim();
+        const expiryDate = document.getElementById('expiryDate').value.trim();
+        const nameOnCard = document.getElementById('nameOnCard').value.trim();
+        if (cardType || cardNumber || expiryDate || nameOnCard) {
+          body.card = { cardType, cardNumber, expiryDate, nameOnCard };
+        }
+
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('submitBtn').textContent = 'Registering...';
+
+        try {
+          const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            showAlert(data.error, 'error');
+          } else {
+            showAlert(data.message, 'success');
+            document.getElementById('registerForm').reset();
+            document.getElementById('pwReqs').querySelectorAll('span').forEach(s => s.className = '');
+          }
+        } catch (err) {
+          showAlert('Something went wrong. Please try again.', 'error');
+        }
+
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('submitBtn').textContent = 'Register';
+      }
+    </script>
+  </body>
+</html>

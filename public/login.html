@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Login - Cinema E-Booking</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+      .container { max-width: 400px; margin: 60px auto; }
+      h1 { text-align: center; color: #333; }
+      .form-section { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+      .form-group { margin-bottom: 15px; }
+      .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #444; font-size: 14px; }
+      .required::after { content: " *"; color: #dc3545; }
+      .form-group input { width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+      .btn { display: block; width: 100%; padding: 12px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+      .btn:hover { background: #0056b3; }
+      .alert { padding: 12px; border-radius: 4px; margin-bottom: 15px; display: none; }
+      .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+      .links { text-align: center; margin-top: 15px; font-size: 14px; }
+      .links a { color: #007bff; text-decoration: none; }
+      .links a:hover { text-decoration: underline; }
+      .links p { margin: 8px 0; }
+    </style>
+  </head>
+  <body>
+    <script src="nav.js"></script>
+    <div class="container">
+      <h1>Login</h1>
+
+      <div id="alertBox" class="alert"></div>
+
+      <div class="form-section">
+        <form onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="required" for="email">Email</label>
+            <input type="email" id="email" required>
+          </div>
+          <div class="form-group">
+            <label class="required" for="password">Password</label>
+            <input type="password" id="password" required>
+          </div>
+          <button type="submit" class="btn" id="submitBtn">Login</button>
+        </form>
+      </div>
+
+      <div class="links">
+        <p><a href="forgot-password.html">Forgot Password?</a></p>
+        <p>Don't have an account? <a href="register.html">Register</a></p>
+      </div>
+    </div>
+
+    <script>
+      // If already logged in, redirect to home
+      if (localStorage.getItem('token')) {
+        window.location.href = 'index.html';
+      }
+
+      function showAlert(message, type) {
+        const box = document.getElementById('alertBox');
+        box.textContent = message;
+        box.className = 'alert alert-' + type;
+        box.style.display = 'block';
+      }
+
+      async function handleLogin(e) {
+        e.preventDefault();
+
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('submitBtn').textContent = 'Logging in...';
+
+        try {
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            showAlert(data.error, 'error');
+          } else {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            if (data.user.role === 'Admin') {
+              window.location.href = 'admin.html';
+            } else {
+              window.location.href = 'index.html';
+            }
+          }
+        } catch (err) {
+          showAlert('Something went wrong. Please try again.', 'error');
+        }
+
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('submitBtn').textContent = 'Login';
+      }
+    </script>
+  </body>
+</html>

@@ -43,11 +43,33 @@
       .movie-info {
         flex: 1;
       }
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
       .movie-title {
         font-size: 28px;
         font-weight: bold;
-        margin: 0 0 10px;
+        margin: 0;
         color: #222;
+      }
+      .heart-btn {
+        background: none;
+        border: none;
+        font-size: 26px;
+        cursor: pointer;
+        color: #ccc;
+        transition: color 0.2s;
+        padding: 0;
+        line-height: 1;
+      }
+      .heart-btn:hover {
+        color: #dc3545;
+      }
+      .heart-btn.favorited {
+        color: #dc3545;
       }
       .badges {
         display: flex;
@@ -82,6 +104,14 @@
         color: #444;
         line-height: 1.6;
         margin-bottom: 20px;
+      }
+      .movie-meta {
+        font-size: 14px;
+        color: #555;
+        margin-bottom: 6px;
+      }
+      .movie-meta strong {
+        color: #333;
       }
       .release-date {
         font-size: 14px;
@@ -146,6 +176,7 @@
     </style>
   </head>
   <body>
+    <script src="nav.js"></script>
     <div class="container">
       <a class="back-link" href="index.html">&larr; Back to Home</a>
       <div id="content">Loading...</div>
@@ -154,21 +185,35 @@
     <script>
       const params = new URLSearchParams(window.location.search);
       const movieId = params.get("id");
+      const isLoggedIn = !!localStorage.getItem('token');
+      let isFavorited = false;
 
       if (!movieId) {
         document.getElementById("content").innerHTML =
           '<div class="error-msg">No movie selected.</div>';
       } else {
-        fetch("/api/movies/" + movieId)
-          .then((res) => {
-            if (!res.ok) throw new Error("Movie not found");
-            return res.json();
-          })
-          .then((movie) => renderMovie(movie))
-          .catch(() => {
-            document.getElementById("content").innerHTML =
-              '<div class="error-msg">Movie not found.</div>';
-          });
+        loadMovie();
+      }
+
+      async function loadMovie() {
+        try {
+          // Load favorite status if logged in
+          if (isLoggedIn) {
+            const favRes = await authFetch('/api/favorites/ids');
+            if (favRes && favRes.ok) {
+              const favIds = await favRes.json();
+              isFavorited = favIds.includes(parseInt(movieId));
+            }
+          }
+
+          const res = await fetch("/api/movies/" + movieId);
+          if (!res.ok) throw new Error("Movie not found");
+          const movie = await res.json();
+          renderMovie(movie);
+        } catch (err) {
+          document.getElementById("content").innerHTML =
+            '<div class="error-msg">Movie not found.</div>';
+        }
       }
 
       function renderMovie(m) {
@@ -183,7 +228,7 @@
           )
           .join("");
 
-        // Build trailer embed — use iframe if URL contains /embed/, else show link
+        // Build trailer embed
         let trailerHtml;
         if (m.trailer && m.trailer.includes("/embed/")) {
           trailerHtml = `
@@ -198,18 +243,33 @@
           trailerHtml = "<p>No trailer available.</p>";
         }
 
+        // Heart button for logged-in users
+        const heartHtml = isLoggedIn
+          ? `<button class="heart-btn ${isFavorited ? 'favorited' : ''}" onclick="toggleFavorite()" title="Toggle favorite" id="heartBtn">${isFavorited ? '&#9829;' : '&#9825;'}</button>`
+          : '';
+
+        // Extra info (director, producer, cast)
+        let extraInfo = '';
+        if (m.director) extraInfo += `<p class="movie-meta"><strong>Director:</strong> ${m.director}</p>`;
+        if (m.producer) extraInfo += `<p class="movie-meta"><strong>Producer:</strong> ${m.producer}</p>`;
+        if (m.cast_members) extraInfo += `<p class="movie-meta"><strong>Cast:</strong> ${m.cast_members}</p>`;
+
         document.getElementById("content").innerHTML = `
           <div class="movie-header">
             <img class="movie-poster" src="${m.poster}" alt="${m.title} poster"
               onerror="this.style.background='#ccc';this.removeAttribute('src')">
             <div class="movie-info">
-              <h1 class="movie-title">${m.title}</h1>
+              <div class="title-row">
+                <h1 class="movie-title">${m.title}</h1>
+                ${heartHtml}
+              </div>
               <div class="badges">
                 <span class="badge badge-rating">${m.rating || "NR"}</span>
                 <span class="badge badge-genre">${m.genre}</span>
                 <span class="badge badge-status ${statusClass}">${m.status}</span>
               </div>
               <p class="movie-description">${m.description}</p>
+              ${extraInfo}
               <p class="release-date">Release Date: ${formatDate(m.release_date)}</p>
             </div>
           </div>
@@ -224,6 +284,22 @@
             <div class="showtimes">${showtimeButtons}</div>
           </div>
         `;
+      }
+
+      async function toggleFavorite() {
+        const method = isFavorited ? 'DELETE' : 'POST';
+        try {
+          const res = await authFetch(`/api/favorites/${movieId}`, { method });
+          if (!res) return;
+          if (res.ok) {
+            isFavorited = !isFavorited;
+            const btn = document.getElementById('heartBtn');
+            btn.innerHTML = isFavorited ? '&#9829;' : '&#9825;';
+            btn.className = 'heart-btn' + (isFavorited ? ' favorited' : '');
+          }
+        } catch (err) {
+          console.error('Toggle favorite error:', err);
+        }
       }
 
       function formatDate(dateStr) {

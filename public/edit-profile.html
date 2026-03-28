@@ -1,0 +1,517 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Edit Profile - Cinema E-Booking</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+      .container { max-width: 800px; margin: 0 auto; }
+      h1 { text-align: center; color: #333; }
+      .section { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+      .section h2 { font-size: 18px; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin: 0 0 15px; }
+      .form-group { margin-bottom: 15px; }
+      .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #444; font-size: 14px; }
+      .required::after { content: " *"; color: #dc3545; }
+      .form-group input, .form-group select { width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+      .form-group input[readonly] { background: #e9ecef; cursor: not-allowed; }
+      .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+      .btn { padding: 10px 20px; font-size: 14px; color: white; border: none; border-radius: 4px; cursor: pointer; }
+      .btn-primary { background: #007bff; }
+      .btn-primary:hover { background: #0056b3; }
+      .btn-danger { background: #dc3545; }
+      .btn-danger:hover { background: #c82333; }
+      .btn-success { background: #28a745; }
+      .btn-success:hover { background: #218838; }
+      .btn-block { display: block; width: 100%; }
+      .alert { padding: 12px; border-radius: 4px; margin-bottom: 15px; }
+      .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+      .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+      .card-item { background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+      .card-info { flex: 1; }
+      .card-info strong { font-size: 15px; }
+      .card-info span { color: #666; font-size: 13px; margin-left: 10px; }
+      .card-actions { display: flex; gap: 8px; }
+      .pw-requirements { font-size: 12px; color: #666; margin-top: 4px; }
+      .pw-requirements span { display: block; }
+      .pw-requirements span.met { color: #28a745; }
+      .pw-requirements span.unmet { color: #dc3545; }
+      .error-msg { color: #dc3545; font-size: 14px; margin-top: 5px; display: none; }
+      .checkbox-group { display: flex; align-items: center; gap: 8px; }
+      .checkbox-group input { width: auto; }
+      .favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; margin-top: 15px; }
+      .fav-card { background: #f8f9fa; padding: 12px; border-radius: 6px; cursor: pointer; transition: transform 0.2s; }
+      .fav-card:hover { transform: translateY(-3px); box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+      .fav-card .title { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+      .fav-card .meta { color: #666; font-size: 12px; }
+      .fav-remove { color: #dc3545; cursor: pointer; font-size: 12px; margin-top: 6px; display: inline-block; }
+      .fav-remove:hover { text-decoration: underline; }
+      .no-items { color: #666; font-style: italic; }
+      #cardFormContainer { display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <script src="nav.js"></script>
+    <div class="container">
+      <h1>Edit Profile</h1>
+
+      <div id="globalAlert"></div>
+
+      <!-- Personal Info -->
+      <div class="section">
+        <h2>Personal Information</h2>
+        <div id="profileAlert"></div>
+        <form onsubmit="updateProfile(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="required" for="firstName">First Name</label>
+              <input type="text" id="firstName" required>
+            </div>
+            <div class="form-group">
+              <label class="required" for="lastName">Last Name</label>
+              <input type="text" id="lastName" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="email">Email (cannot be changed)</label>
+            <input type="email" id="email" readonly>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone">
+          </div>
+          <div class="form-group checkbox-group">
+            <input type="checkbox" id="promotionOptIn">
+            <label for="promotionOptIn" style="margin-bottom:0;font-weight:normal;">Subscribe to promotional emails</label>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+      </div>
+
+      <!-- Change Password -->
+      <div class="section">
+        <h2>Change Password</h2>
+        <div id="passwordAlert"></div>
+        <form onsubmit="changePassword(event)">
+          <div class="form-group">
+            <label class="required" for="currentPassword">Current Password</label>
+            <input type="password" id="currentPassword" required>
+          </div>
+          <div class="form-group">
+            <label class="required" for="newPassword">New Password</label>
+            <input type="password" id="newPassword" required oninput="checkPasswordStrength()">
+            <div class="pw-requirements" id="pwReqs">
+              <span id="pw-length">At least 8 characters</span>
+              <span id="pw-upper">1 uppercase letter</span>
+              <span id="pw-lower">1 lowercase letter</span>
+              <span id="pw-number">1 number</span>
+              <span id="pw-special">1 special character</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="required" for="confirmNewPassword">Confirm New Password</label>
+            <input type="password" id="confirmNewPassword" required oninput="checkPasswordMatch()">
+            <div class="error-msg" id="matchError">Passwords do not match</div>
+          </div>
+          <button type="submit" class="btn btn-primary">Change Password</button>
+        </form>
+      </div>
+
+      <!-- Address -->
+      <div class="section">
+        <h2>Address</h2>
+        <div id="addressAlert"></div>
+        <form onsubmit="saveAddress(event)">
+          <div class="form-group">
+            <label class="required" for="street">Street</label>
+            <input type="text" id="street" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="required" for="city">City</label>
+              <input type="text" id="city" required>
+            </div>
+            <div class="form-group">
+              <label class="required" for="state">State</label>
+              <input type="text" id="state" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="required" for="zipCode">Zip Code</label>
+            <input type="text" id="zipCode" required>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button type="submit" class="btn btn-primary">Save Address</button>
+            <button type="button" class="btn btn-danger" onclick="deleteAddress()">Remove Address</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Payment Cards -->
+      <div class="section">
+        <h2>Payment Cards</h2>
+        <div id="cardAlert"></div>
+        <div id="cardList"></div>
+        <button type="button" class="btn btn-success" id="addCardBtn" onclick="showCardForm()" style="margin-top:10px;">Add Card</button>
+
+        <div id="cardFormContainer">
+          <h3 id="cardFormTitle" style="margin:0 0 15px;font-size:16px;">Add New Card</h3>
+          <form onsubmit="saveCard(event)">
+            <input type="hidden" id="editCardId" value="">
+            <div class="form-group">
+              <label class="required" for="cardType">Card Type</label>
+              <select id="cardType" required>
+                <option value="">Select...</option>
+                <option value="Visa">Visa</option>
+                <option value="Mastercard">Mastercard</option>
+                <option value="Amex">American Express</option>
+                <option value="Discover">Discover</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="required" for="cardNumber">Card Number</label>
+              <input type="text" id="cardNumber" required maxlength="19" placeholder="1234 5678 9012 3456">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="required" for="expiryDate">Expiry Date</label>
+                <input type="text" id="expiryDate" required placeholder="MM/YY" maxlength="5">
+              </div>
+              <div class="form-group">
+                <label class="required" for="nameOnCard">Name on Card</label>
+                <input type="text" id="nameOnCard" required>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button type="submit" class="btn btn-primary">Save Card</button>
+              <button type="button" class="btn btn-danger" onclick="hideCardForm()">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Favorites -->
+      <div class="section">
+        <h2>My Favorites</h2>
+        <div id="favoritesList"></div>
+      </div>
+    </div>
+
+    <script>
+      // Redirect if not logged in
+      if (!localStorage.getItem('token')) {
+        window.location.href = 'login.html';
+      }
+
+      let profileData = null;
+
+      // Load profile on page load
+      document.addEventListener('DOMContentLoaded', () => {
+        loadProfile();
+        loadFavorites();
+      });
+
+      function showSectionAlert(id, message, type) {
+        const el = document.getElementById(id);
+        el.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        setTimeout(() => el.innerHTML = '', 5000);
+      }
+
+      async function loadProfile() {
+        try {
+          const res = await authFetch('/api/profile');
+          if (!res) return;
+          profileData = await res.json();
+
+          document.getElementById('firstName').value = profileData.first_name || '';
+          document.getElementById('lastName').value = profileData.last_name || '';
+          document.getElementById('email').value = profileData.email || '';
+          document.getElementById('phone').value = profileData.phone || '';
+          document.getElementById('promotionOptIn').checked = profileData.promotion_opt_in === 1;
+
+          // Address
+          if (profileData.address) {
+            document.getElementById('street').value = profileData.address.street || '';
+            document.getElementById('city').value = profileData.address.city || '';
+            document.getElementById('state').value = profileData.address.state || '';
+            document.getElementById('zipCode').value = profileData.address.zip_code || '';
+          }
+
+          // Cards
+          renderCards(profileData.cards || []);
+        } catch (err) {
+          console.error('Load profile error:', err);
+        }
+      }
+
+      function renderCards(cards) {
+        const list = document.getElementById('cardList');
+        const addBtn = document.getElementById('addCardBtn');
+
+        if (cards.length === 0) {
+          list.innerHTML = '<p class="no-items">No payment cards saved.</p>';
+        } else {
+          list.innerHTML = cards.map(c => `
+            <div class="card-item">
+              <div class="card-info">
+                <strong>${c.card_type}</strong>
+                <span>**** ${c.last_four}</span>
+                <span>Exp: ${c.expiry_date}</span>
+                <span>${c.name_on_card}</span>
+              </div>
+              <div class="card-actions">
+                <button class="btn btn-primary" onclick="editCard(${c.card_id}, '${c.card_type}', '${c.expiry_date}', '${c.name_on_card}')">Edit</button>
+                <button class="btn btn-danger" onclick="deleteCard(${c.card_id})">Remove</button>
+              </div>
+            </div>
+          `).join('');
+        }
+
+        // Show/hide add button (max 3)
+        addBtn.style.display = cards.length >= 3 ? 'none' : 'inline-block';
+      }
+
+      // ─── Profile Update ───
+
+      async function updateProfile(e) {
+        e.preventDefault();
+        try {
+          const res = await authFetch('/api/profile', {
+            method: 'PUT',
+            body: JSON.stringify({
+              firstName: document.getElementById('firstName').value.trim(),
+              lastName: document.getElementById('lastName').value.trim(),
+              phone: document.getElementById('phone').value.trim(),
+              promotionOptIn: document.getElementById('promotionOptIn').checked
+            })
+          });
+          if (!res) return;
+          const data = await res.json();
+          if (!res.ok) {
+            showSectionAlert('profileAlert', data.error, 'error');
+          } else {
+            showSectionAlert('profileAlert', data.message, 'success');
+            // Update stored user name
+            const user = JSON.parse(localStorage.getItem('user'));
+            user.first_name = document.getElementById('firstName').value.trim();
+            user.last_name = document.getElementById('lastName').value.trim();
+            localStorage.setItem('user', JSON.stringify(user));
+          }
+        } catch (err) {
+          showSectionAlert('profileAlert', 'Failed to update profile.', 'error');
+        }
+      }
+
+      // ─── Password Change ───
+
+      function checkPasswordStrength() {
+        const pw = document.getElementById('newPassword').value;
+        const checks = {
+          'pw-length': pw.length >= 8,
+          'pw-upper': /[A-Z]/.test(pw),
+          'pw-lower': /[a-z]/.test(pw),
+          'pw-number': /[0-9]/.test(pw),
+          'pw-special': /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw)
+        };
+        for (const [id, met] of Object.entries(checks)) {
+          document.getElementById(id).className = met ? 'met' : 'unmet';
+        }
+      }
+
+      function checkPasswordMatch() {
+        const pw = document.getElementById('newPassword').value;
+        const cpw = document.getElementById('confirmNewPassword').value;
+        document.getElementById('matchError').style.display = (cpw && pw !== cpw) ? 'block' : 'none';
+      }
+
+      async function changePassword(e) {
+        e.preventDefault();
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmNewPassword').value;
+
+        if (newPassword !== confirmPassword) {
+          showSectionAlert('passwordAlert', 'New passwords do not match.', 'error');
+          return;
+        }
+
+        const pwChecks = [
+          newPassword.length >= 8,
+          /[A-Z]/.test(newPassword),
+          /[a-z]/.test(newPassword),
+          /[0-9]/.test(newPassword),
+          /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword)
+        ];
+        if (pwChecks.includes(false)) {
+          showSectionAlert('passwordAlert', 'Password must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special character.', 'error');
+          return;
+        }
+
+        try {
+          const res = await authFetch('/api/profile/password', {
+            method: 'PUT',
+            body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+          });
+          if (!res) return;
+          const data = await res.json();
+          if (!res.ok) {
+            showSectionAlert('passwordAlert', data.error, 'error');
+          } else {
+            showSectionAlert('passwordAlert', data.message, 'success');
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmNewPassword').value = '';
+            document.getElementById('pwReqs').querySelectorAll('span').forEach(s => s.className = '');
+          }
+        } catch (err) {
+          showSectionAlert('passwordAlert', 'Failed to change password.', 'error');
+        }
+      }
+
+      // ─── Address ───
+
+      async function saveAddress(e) {
+        e.preventDefault();
+        try {
+          const res = await authFetch('/api/profile/address', {
+            method: 'PUT',
+            body: JSON.stringify({
+              street: document.getElementById('street').value.trim(),
+              city: document.getElementById('city').value.trim(),
+              state: document.getElementById('state').value.trim(),
+              zipCode: document.getElementById('zipCode').value.trim()
+            })
+          });
+          if (!res) return;
+          const data = await res.json();
+          if (!res.ok) {
+            showSectionAlert('addressAlert', data.error, 'error');
+          } else {
+            showSectionAlert('addressAlert', data.message, 'success');
+          }
+        } catch (err) {
+          showSectionAlert('addressAlert', 'Failed to save address.', 'error');
+        }
+      }
+
+      async function deleteAddress() {
+        if (!confirm('Remove your address?')) return;
+        try {
+          const res = await authFetch('/api/profile/address', { method: 'DELETE' });
+          if (!res) return;
+          const data = await res.json();
+          if (!res.ok) {
+            showSectionAlert('addressAlert', data.error, 'error');
+          } else {
+            showSectionAlert('addressAlert', data.message, 'success');
+            document.getElementById('street').value = '';
+            document.getElementById('city').value = '';
+            document.getElementById('state').value = '';
+            document.getElementById('zipCode').value = '';
+          }
+        } catch (err) {
+          showSectionAlert('addressAlert', 'Failed to remove address.', 'error');
+        }
+      }
+
+      // ─── Payment Cards ───
+
+      function showCardForm(cardId, cardType, expiryDate, nameOnCard) {
+        document.getElementById('cardFormContainer').style.display = 'block';
+        document.getElementById('editCardId').value = cardId || '';
+        document.getElementById('cardFormTitle').textContent = cardId ? 'Edit Card' : 'Add New Card';
+        document.getElementById('cardType').value = cardType || '';
+        document.getElementById('cardNumber').value = '';
+        document.getElementById('expiryDate').value = expiryDate || '';
+        document.getElementById('nameOnCard').value = nameOnCard || '';
+      }
+
+      function hideCardForm() {
+        document.getElementById('cardFormContainer').style.display = 'none';
+      }
+
+      function editCard(cardId, cardType, expiryDate, nameOnCard) {
+        showCardForm(cardId, cardType, expiryDate, nameOnCard);
+      }
+
+      async function saveCard(e) {
+        e.preventDefault();
+        const cardId = document.getElementById('editCardId').value;
+        const body = {
+          cardType: document.getElementById('cardType').value,
+          cardNumber: document.getElementById('cardNumber').value.trim(),
+          expiryDate: document.getElementById('expiryDate').value.trim(),
+          nameOnCard: document.getElementById('nameOnCard').value.trim()
+        };
+
+        try {
+          const url = cardId ? `/api/profile/cards/${cardId}` : '/api/profile/cards';
+          const method = cardId ? 'PUT' : 'POST';
+          const res = await authFetch(url, { method, body: JSON.stringify(body) });
+          if (!res) return;
+          const data = await res.json();
+          if (!res.ok) {
+            showSectionAlert('cardAlert', data.error, 'error');
+          } else {
+            showSectionAlert('cardAlert', data.message, 'success');
+            hideCardForm();
+            loadProfile();
+          }
+        } catch (err) {
+          showSectionAlert('cardAlert', 'Failed to save card.', 'error');
+        }
+      }
+
+      async function deleteCard(cardId) {
+        if (!confirm('Remove this card?')) return;
+        try {
+          const res = await authFetch(`/api/profile/cards/${cardId}`, { method: 'DELETE' });
+          if (!res) return;
+          const data = await res.json();
+          if (!res.ok) {
+            showSectionAlert('cardAlert', data.error, 'error');
+          } else {
+            showSectionAlert('cardAlert', data.message, 'success');
+            loadProfile();
+          }
+        } catch (err) {
+          showSectionAlert('cardAlert', 'Failed to remove card.', 'error');
+        }
+      }
+
+      // ─── Favorites ───
+
+      async function loadFavorites() {
+        try {
+          const res = await authFetch('/api/favorites');
+          if (!res) return;
+          const favorites = await res.json();
+
+          const container = document.getElementById('favoritesList');
+          if (favorites.length === 0) {
+            container.innerHTML = '<p class="no-items">No favorites yet. Click the heart icon on movies to add them!</p>';
+            return;
+          }
+
+          container.innerHTML = '<div class="favorites-grid">' + favorites.map(m => `
+            <div class="fav-card" onclick="window.location.href='movie.html?id=${m.movie_id}'">
+              <div class="title">${m.title}</div>
+              <div class="meta">${m.genre} | ${m.rating || 'NR'}</div>
+              <span class="fav-remove" onclick="event.stopPropagation(); removeFavorite(${m.movie_id})">Remove</span>
+            </div>
+          `).join('') + '</div>';
+        } catch (err) {
+          console.error('Load favorites error:', err);
+        }
+      }
+
+      async function removeFavorite(movieId) {
+        try {
+          const res = await authFetch(`/api/favorites/${movieId}`, { method: 'DELETE' });
+          if (!res) return;
+          loadFavorites();
+        } catch (err) {
+          console.error('Remove favorite error:', err);
+        }
+      }
+    </script>
+  </body>
+</html>

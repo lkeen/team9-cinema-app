@@ -1,36 +1,41 @@
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  const Showtime = sequelize.define(
-    "Showtime",
+  const Booking = sequelize.define(
+    "Booking",
     {
-      showtime_id: {
+      booking_id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
       },
-      movie_id: {
+      user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      showroom_id: {
+      showtime_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      show_date: {
-        type: DataTypes.DATEONLY,
+      email: {
+        type: DataTypes.STRING(255),
         allowNull: false,
       },
-      show_time: {
-        type: DataTypes.TIME,
+      status: {
+        type: DataTypes.ENUM("pending", "confirmed", "cancelled"),
         allowNull: false,
+        defaultValue: "pending",
+      },
+      created_at: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
       },
     },
     {
-      tableName: "showtimes",
+      tableName: "bookings",
       timestamps: false,
     }
   );
 
-  return Showtime;
+  return Booking;
 };

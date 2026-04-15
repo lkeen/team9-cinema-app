@@ -13,12 +13,29 @@
       .sidebar-item.active { border-color: #007bff; background: #e7f1ff; color: #007bff; font-weight: bold; }
       .main-content { flex: 1; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); min-height: 400px; }
       .main-content h2 { font-size: 20px; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin: 0 0 20px; }
-      .placeholder { color: #666; font-style: italic; text-align: center; padding: 40px 20px; }
-      .placeholder p { margin: 10px 0; }
+      .form-group { margin-bottom: 15px; }
+      .form-group label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 14px; color: #333; }
+      .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+      .form-group textarea { resize: vertical; min-height: 70px; }
+      .required::after { content: " *"; color: #dc3545; }
+      .form-row { display: flex; gap: 15px; }
+      .form-row .form-group { flex: 1; }
+      .btn { display: inline-block; padding: 10px 24px; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; color: white; }
+      .btn-primary { background: #007bff; }
+      .btn-primary:hover { background: #0056b3; }
+      .btn-primary:disabled { background: #999; cursor: not-allowed; }
+      .msg { padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
+      .msg-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+      .msg-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
       .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
       .stat-card { background: #f8f9fa; padding: 20px; border-radius: 6px; text-align: center; }
       .stat-card .number { font-size: 32px; font-weight: bold; color: #007bff; }
       .stat-card .label { color: #666; font-size: 14px; margin-top: 5px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+      th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+      th { background: #f8f9fa; font-weight: bold; color: #333; }
+      tr:hover { background: #f8f9fa; }
+      .placeholder { color: #666; font-style: italic; text-align: center; padding: 40px 20px; }
     </style>
   </head>
   <body>
@@ -28,72 +45,349 @@
 
       <div class="dashboard">
         <div class="sidebar">
-          <div class="sidebar-item active" onclick="showPanel('movies')">Manage Movies</div>
-          <div class="sidebar-item" onclick="showPanel('promotions')">Manage Promotions</div>
-          <div class="sidebar-item" onclick="showPanel('users')">Manage Users</div>
-          <div class="sidebar-item" onclick="showPanel('showtimes')">Manage Showtimes</div>
+          <div class="sidebar-item active" data-panel="movies">Manage Movies</div>
+          <div class="sidebar-item" data-panel="showtimes">Manage Showtimes</div>
+          <div class="sidebar-item" data-panel="promotions">Manage Promotions</div>
+          <div class="sidebar-item" data-panel="users">Manage Users</div>
         </div>
 
-        <div class="main-content" id="panelContent">
-          <!-- Default: Manage Movies -->
-        </div>
+        <div class="main-content" id="panelContent"></div>
       </div>
     </div>
 
     <script>
-      // Redirect if not logged in or not admin
       const user = JSON.parse(localStorage.getItem('user') || 'null');
       if (!localStorage.getItem('token') || !user || user.role !== 'Admin') {
         window.location.href = 'login.html';
       }
 
-      const panels = {
-        movies: `
-          <h2>Manage Movies</h2>
-          <div class="stats">
-            <div class="stat-card"><div class="number">--</div><div class="label">Total Movies</div></div>
-            <div class="stat-card"><div class="number">--</div><div class="label">Now Playing</div></div>
-            <div class="stat-card"><div class="number">--</div><div class="label">Coming Soon</div></div>
-          </div>
-          <div class="placeholder">
-            <p>Movie management features coming in Sprint 3.</p>
-            <p>You will be able to add, edit, and remove movies here.</p>
-          </div>
-        `,
-        promotions: `
-          <h2>Manage Promotions</h2>
-          <div class="placeholder">
-            <p>Promotion management features coming in Sprint 3.</p>
-            <p>You will be able to create and send promotional emails here.</p>
-          </div>
-        `,
-        users: `
-          <h2>Manage Users</h2>
-          <div class="placeholder">
-            <p>User management features coming in Sprint 3.</p>
-            <p>You will be able to view, suspend, and manage user accounts here.</p>
-          </div>
-        `,
-        showtimes: `
-          <h2>Manage Showtimes</h2>
-          <div class="placeholder">
-            <p>Showtime management features coming in Sprint 3.</p>
-            <p>You will be able to add, edit, and remove showtimes for movies here.</p>
-          </div>
-        `
-      };
+      let allMovies = [];
+      let allShowrooms = [];
 
-      function showPanel(panel) {
-        document.getElementById('panelContent').innerHTML = panels[panel];
-        document.querySelectorAll('.sidebar-item').forEach(item => {
-          item.classList.remove('active');
+      // ──── Sidebar Navigation ────
+
+      document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          loadPanel(item.dataset.panel);
         });
-        event.target.classList.add('active');
+      });
+
+      // ──── Panel Loaders ────
+
+      async function loadPanel(panel) {
+        const c = document.getElementById('panelContent');
+        if (panel === 'movies') await loadMoviesPanel(c);
+        else if (panel === 'showtimes') await loadShowtimesPanel(c);
+        else if (panel === 'promotions') await loadPromotionsPanel(c);
+        else if (panel === 'users') c.innerHTML = '<h2>Manage Users</h2><div class="placeholder"><p>User management is not required for this deliverable.</p></div>';
       }
 
-      // Load default panel
+      // ══════════════════════════════
+      // MANAGE MOVIES
+      // ══════════════════════════════
+
+      async function loadMoviesPanel(c) {
+        try {
+          const res = await fetch('/api/movies');
+          allMovies = await res.json();
+        } catch { allMovies = []; }
+
+        const nowPlaying = allMovies.filter(m => m.status === 'Now Playing').length;
+        const comingSoon = allMovies.filter(m => m.status === 'Coming Soon').length;
+
+        c.innerHTML = `
+          <h2>Manage Movies</h2>
+          <div class="stats">
+            <div class="stat-card"><div class="number">${allMovies.length}</div><div class="label">Total Movies</div></div>
+            <div class="stat-card"><div class="number">${nowPlaying}</div><div class="label">Now Playing</div></div>
+            <div class="stat-card"><div class="number">${comingSoon}</div><div class="label">Coming Soon</div></div>
+          </div>
+          <h3 style="margin:20px 0 10px;">Add New Movie</h3>
+          <div id="movieMsg"></div>
+          <form id="addMovieForm">
+            <div class="form-row">
+              <div class="form-group"><label class="required">Title</label><input id="mTitle" required maxlength="500"></div>
+              <div class="form-group"><label class="required">Genre</label>
+                <select id="mGenre" required>
+                  <option value="">Select genre</option>
+                  <option>Animation</option><option>Comedy</option><option>Drama</option><option>Horror</option><option>Romance</option><option>Action</option><option>Sci-Fi</option><option>Thriller</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="required">Rating</label>
+                <select id="mRating" required>
+                  <option value="">Select rating</option>
+                  <option>G</option><option>PG</option><option>PG-13</option><option>R</option><option>NR</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="required">Status</label>
+                <select id="mStatus" required>
+                  <option value="">Select status</option>
+                  <option>Now Playing</option><option>Coming Soon</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group"><label>Description</label><textarea id="mDescription" rows="3"></textarea></div>
+            <div class="form-row">
+              <div class="form-group"><label>Director</label><input id="mDirector"></div>
+              <div class="form-group"><label>Producer</label><input id="mProducer"></div>
+            </div>
+            <div class="form-group"><label>Cast Members</label><input id="mCast" placeholder="Comma-separated names"></div>
+            <div class="form-row">
+              <div class="form-group"><label>Poster URL</label><input id="mPoster" placeholder="Image URL or path"></div>
+              <div class="form-group"><label>Trailer URL</label><input id="mTrailer" placeholder="YouTube embed URL"></div>
+            </div>
+            <div class="form-group"><label>Release Date</label><input id="mReleaseDate" type="date"></div>
+            <button type="submit" class="btn btn-primary">Add Movie</button>
+          </form>
+        `;
+
+        document.getElementById('addMovieForm').addEventListener('submit', handleAddMovie);
+      }
+
+      async function handleAddMovie(e) {
+        e.preventDefault();
+        const msgEl = document.getElementById('movieMsg');
+        msgEl.innerHTML = '';
+
+        const body = {
+          title: document.getElementById('mTitle').value.trim(),
+          genre: document.getElementById('mGenre').value,
+          rating: document.getElementById('mRating').value,
+          status: document.getElementById('mStatus').value,
+          description: document.getElementById('mDescription').value.trim(),
+          director: document.getElementById('mDirector').value.trim(),
+          producer: document.getElementById('mProducer').value.trim(),
+          cast_members: document.getElementById('mCast').value.trim(),
+          poster: document.getElementById('mPoster').value.trim(),
+          trailer: document.getElementById('mTrailer').value.trim(),
+          release_date: document.getElementById('mReleaseDate').value || null,
+        };
+
+        if (!body.title || !body.genre || !body.rating || !body.status) {
+          msgEl.innerHTML = '<div class="msg msg-error">Please fill in all required fields.</div>';
+          return;
+        }
+
+        try {
+          const res = await authFetch('/api/admin/movies', {
+            method: 'POST',
+            body: JSON.stringify(body),
+          });
+          if (!res) return;
+          const data = await res.json();
+          if (res.ok) {
+            msgEl.innerHTML = `<div class="msg msg-success">${data.message}</div>`;
+            document.getElementById('addMovieForm').reset();
+            // Refresh stats
+            setTimeout(() => loadPanel('movies'), 1500);
+          } else {
+            msgEl.innerHTML = `<div class="msg msg-error">${data.error}</div>`;
+          }
+        } catch (err) {
+          msgEl.innerHTML = '<div class="msg msg-error">Failed to add movie.</div>';
+        }
+      }
+
+      // ══════════════════════════════
+      // MANAGE SHOWTIMES
+      // ══════════════════════════════
+
+      async function loadShowtimesPanel(c) {
+        // Load movies and showrooms
+        try {
+          const [movRes, srRes] = await Promise.all([fetch('/api/movies'), fetch('/api/showrooms')]);
+          allMovies = await movRes.json();
+          allShowrooms = await srRes.json();
+        } catch { allMovies = []; allShowrooms = []; }
+
+        const movieOpts = allMovies.map(m => `<option value="${m.movie_id}">${m.title}</option>`).join('');
+        const roomOpts = allShowrooms.map(r => `<option value="${r.showroom_id}">${r.name} (${r.rows * r.cols} seats)</option>`).join('');
+
+        c.innerHTML = `
+          <h2>Manage Showtimes</h2>
+          <h3 style="margin:0 0 10px;">Add Showtime</h3>
+          <div id="stMsg"></div>
+          <form id="addShowtimeForm">
+            <div class="form-row">
+              <div class="form-group"><label class="required">Movie</label>
+                <select id="stMovie" required><option value="">Select movie</option>${movieOpts}</select>
+              </div>
+              <div class="form-group"><label class="required">Showroom</label>
+                <select id="stRoom" required><option value="">Select showroom</option>${roomOpts}</select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="required">Date</label><input id="stDate" type="date" required></div>
+              <div class="form-group"><label class="required">Time</label><input id="stTime" type="time" required></div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Showtime</button>
+          </form>
+          <h3 style="margin:25px 0 10px;">Scheduled Showtimes</h3>
+          <div id="showtimeList"><p style="color:#666;">Loading...</p></div>
+        `;
+
+        document.getElementById('addShowtimeForm').addEventListener('submit', handleAddShowtime);
+        loadShowtimeList();
+      }
+
+      async function handleAddShowtime(e) {
+        e.preventDefault();
+        const msgEl = document.getElementById('stMsg');
+        msgEl.innerHTML = '';
+
+        const body = {
+          movie_id: parseInt(document.getElementById('stMovie').value),
+          showroom_id: parseInt(document.getElementById('stRoom').value),
+          show_date: document.getElementById('stDate').value,
+          show_time: document.getElementById('stTime').value,
+        };
+
+        if (!body.movie_id || !body.showroom_id || !body.show_date || !body.show_time) {
+          msgEl.innerHTML = '<div class="msg msg-error">Please fill in all required fields.</div>';
+          return;
+        }
+
+        try {
+          const res = await authFetch('/api/admin/showtimes', {
+            method: 'POST',
+            body: JSON.stringify(body),
+          });
+          if (!res) return;
+          const data = await res.json();
+          if (res.ok) {
+            msgEl.innerHTML = `<div class="msg msg-success">${data.message}</div>`;
+            document.getElementById('addShowtimeForm').reset();
+            loadShowtimeList();
+          } else {
+            msgEl.innerHTML = `<div class="msg msg-error">${data.error}</div>`;
+          }
+        } catch (err) {
+          msgEl.innerHTML = '<div class="msg msg-error">Failed to add showtime.</div>';
+        }
+      }
+
+      async function loadShowtimeList() {
+        const el = document.getElementById('showtimeList');
+        try {
+          const res = await authFetch('/api/admin/showtimes');
+          if (!res) return;
+          const data = await res.json();
+          if (data.length === 0) {
+            el.innerHTML = '<p style="color:#666;">No showtimes scheduled yet.</p>';
+            return;
+          }
+          let html = `<table><thead><tr><th>Movie</th><th>Showroom</th><th>Date</th><th>Time</th></tr></thead><tbody>`;
+          data.forEach(st => {
+            const d = new Date(st.show_date + 'T00:00:00');
+            const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            // Format time from HH:MM:SS to 12-hour
+            const [h, m] = st.show_time.split(':');
+            const hr = parseInt(h);
+            const ampm = hr >= 12 ? 'PM' : 'AM';
+            const hr12 = hr % 12 || 12;
+            const timeStr = `${hr12}:${m} ${ampm}`;
+            html += `<tr><td>${st.Movie ? st.Movie.title : 'N/A'}</td><td>${st.Showroom ? st.Showroom.name : 'N/A'}</td><td>${dateStr}</td><td>${timeStr}</td></tr>`;
+          });
+          html += '</tbody></table>';
+          el.innerHTML = html;
+        } catch {
+          el.innerHTML = '<p style="color:#dc3545;">Failed to load showtimes.</p>';
+        }
+      }
+
+      // ══════════════════════════════
+      // MANAGE PROMOTIONS (Bonus)
+      // ══════════════════════════════
+
+      async function loadPromotionsPanel(c) {
+        c.innerHTML = `
+          <h2>Manage Promotions</h2>
+          <h3 style="margin:0 0 10px;">Add Promotion</h3>
+          <div id="promoMsg"></div>
+          <form id="addPromoForm">
+            <div class="form-row">
+              <div class="form-group"><label class="required">Promo Code</label><input id="pCode" required maxlength="50" placeholder="e.g. SUMMER25"></div>
+              <div class="form-group"><label class="required">Discount (%)</label><input id="pDiscount" type="number" min="1" max="100" required></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="required">Start Date</label><input id="pStart" type="date" required></div>
+              <div class="form-group"><label class="required">End Date</label><input id="pEnd" type="date" required></div>
+            </div>
+            <div class="form-group"><label>Description</label><textarea id="pDesc" rows="2" placeholder="Promotion details for email"></textarea></div>
+            <button type="submit" class="btn btn-primary">Create & Send to Subscribers</button>
+          </form>
+          <h3 style="margin:25px 0 10px;">Existing Promotions</h3>
+          <div id="promoList"><p style="color:#666;">Loading...</p></div>
+        `;
+        document.getElementById('addPromoForm').addEventListener('submit', handleAddPromo);
+        loadPromoList();
+      }
+
+      async function handleAddPromo(e) {
+        e.preventDefault();
+        const msgEl = document.getElementById('promoMsg');
+        msgEl.innerHTML = '';
+
+        const body = {
+          code: document.getElementById('pCode').value.trim().toUpperCase(),
+          discount_percent: parseFloat(document.getElementById('pDiscount').value),
+          start_date: document.getElementById('pStart').value,
+          end_date: document.getElementById('pEnd').value,
+          description: document.getElementById('pDesc').value.trim(),
+        };
+
+        if (!body.code || !body.discount_percent || !body.start_date || !body.end_date) {
+          msgEl.innerHTML = '<div class="msg msg-error">Please fill in all required fields.</div>';
+          return;
+        }
+
+        try {
+          const res = await authFetch('/api/admin/promotions', {
+            method: 'POST',
+            body: JSON.stringify(body),
+          });
+          if (!res) return;
+          const data = await res.json();
+          if (res.ok) {
+            msgEl.innerHTML = `<div class="msg msg-success">${data.message}</div>`;
+            document.getElementById('addPromoForm').reset();
+            loadPromoList();
+          } else {
+            msgEl.innerHTML = `<div class="msg msg-error">${data.error}</div>`;
+          }
+        } catch {
+          msgEl.innerHTML = '<div class="msg msg-error">Failed to create promotion.</div>';
+        }
+      }
+
+      async function loadPromoList() {
+        const el = document.getElementById('promoList');
+        try {
+          const res = await authFetch('/api/admin/promotions');
+          if (!res) return;
+          const data = await res.json();
+          if (data.length === 0) {
+            el.innerHTML = '<p style="color:#666;">No promotions yet.</p>';
+            return;
+          }
+          let html = '<table><thead><tr><th>Code</th><th>Discount</th><th>Start</th><th>End</th><th>Sent</th></tr></thead><tbody>';
+          data.forEach(p => {
+            html += `<tr><td><strong>${p.code}</strong></td><td>${p.discount_percent}%</td><td>${p.start_date}</td><td>${p.end_date}</td><td>${p.sent ? 'Yes' : 'No'}</td></tr>`;
+          });
+          html += '</tbody></table>';
+          el.innerHTML = html;
+        } catch {
+          el.innerHTML = '<p style="color:#dc3545;">Failed to load promotions.</p>';
+        }
+      }
+
+      // Load default panel on page load
       document.addEventListener('DOMContentLoaded', () => {
-        showPanel('movies');
+        loadPanel('movies');
       });
     </script>
   </body>

@@ -13,9 +13,16 @@ const {
   PaymentCard,
   Movie,
   Showtime,
+  Showroom,
   Favorite,
   VerificationToken,
   PasswordResetToken,
+  Booking,
+  BookedSeat,
+  Promotion,
+  TicketPrice,
+  Order,
+  Payment,
 } = require("./models");
 
 const server = express();
@@ -910,6 +917,353 @@ server.delete("/api/favorites/:movieId", authenticateToken, async (req, res) => 
   } catch (err) {
     console.error("Remove favorite error:", err);
     res.status(500).json({ error: "Failed to remove favorite." });
+  }
+});
+
+// ═══════════════════════════════════════════════
+// ADMIN ROUTES
+// ═══════════════════════════════════════════════
+
+function requireAdmin(req, res, next) {
+  if (req.user.role !== "Admin") {
+    return res.status(403).json({ error: "Admin access required." });
+  }
+  next();
+}
+
+// ─── Admin: Add Movie ───
+
+server.post("/api/admin/movies", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { title, genre, rating, description, poster, trailer, status, release_date, director, producer, cast_members } = req.body;
+
+    if (!title || !genre || !rating || !status) {
+      return res.status(400).json({ error: "Title, genre, rating, and status are required." });
+    }
+
+    const validGenres = ["Animation", "Comedy", "Drama", "Horror", "Romance", "Action", "Sci-Fi", "Thriller"];
+    if (!validGenres.includes(genre)) {
+      return res.status(400).json({ error: "Invalid genre." });
+    }
+
+    const validRatings = ["G", "PG", "PG-13", "R", "NR"];
+    if (!validRatings.includes(rating)) {
+      return res.status(400).json({ error: "Invalid rating." });
+    }
+
+    if (!["Now Playing", "Coming Soon"].includes(status)) {
+      return res.status(400).json({ error: "Status must be 'Now Playing' or 'Coming Soon'." });
+    }
+
+    const movie = await Movie.create({
+      title,
+      genre,
+      rating,
+      description: description || null,
+      poster: poster || null,
+      trailer: trailer || null,
+      status,
+      release_date: release_date || null,
+      director: director || null,
+      producer: producer || null,
+      cast_members: cast_members || null,
+    });
+
+    res.status(201).json({ message: "Movie added successfully.", movie });
+  } catch (err) {
+    console.error("Add movie error:", err);
+    res.status(500).json({ error: "Failed to add movie." });
+  }
+});
+
+// ─── Admin: Get Showrooms ───
+
+server.get("/api/showrooms", async (req, res) => {
+  try {
+    const showrooms = await Showroom.findAll();
+    res.json(showrooms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Admin: Add Showtime ───
+
+server.post("/api/admin/showtimes", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { movie_id, showroom_id, show_date, show_time } = req.body;
+
+    if (!movie_id || !showroom_id || !show_date || !show_time) {
+      return res.status(400).json({ error: "Movie, showroom, date, and time are all required." });
+    }
+
+    // Verify movie exists
+    const movie = await Movie.findByPk(movie_id);
+    if (!movie) {
+      return res.status(404).json({ error: "Movie not found." });
+    }
+
+    // Verify showroom exists
+    const showroom = await Showroom.findByPk(showroom_id);
+    if (!showroom) {
+      return res.status(404).json({ error: "Showroom not found." });
+    }
+
+    // Check for scheduling conflict (same showroom, same date, same time)
+    const conflict = await Showtime.findOne({
+      where: {
+        showroom_id,
+        show_date,
+        show_time,
+      },
+    });
+
+    if (conflict) {
+      const conflictMovie = await Movie.findByPk(conflict.movie_id, { attributes: ["title"] });
+      return res.status(409).json({
+        error: `Scheduling conflict: ${showroom.name} already has "${conflictMovie.title}" scheduled at that date and time.`,
+      });
+    }
+
+    const showtime = await Showtime.create({ movie_id, showroom_id, show_date, show_time });
+
+    res.status(201).json({ message: "Showtime added successfully.", showtime });
+  } catch (err) {
+    console.error("Add showtime error:", err);
+    res.status(500).json({ error: "Failed to add showtime." });
+  }
+});
+
+// ─── Admin: Get All Showtimes ───
+
+server.get("/api/admin/showtimes", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const showtimes = await Showtime.findAll({
+      include: [
+        { model: Movie, attributes: ["title"] },
+        { model: Showroom, attributes: ["name"] },
+      ],
+      order: [["show_date", "ASC"], ["show_time", "ASC"]],
+    });
+    res.json(showtimes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Admin: Add Promotion (Bonus) ───
+
+server.post("/api/admin/promotions", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { code, discount_percent, start_date, end_date, description } = req.body;
+
+    if (!code || !discount_percent || !start_date || !end_date) {
+      return res.status(400).json({ error: "Code, discount, start date, and end date are required." });
+    }
+
+    if (discount_percent <= 0 || discount_percent > 100) {
+      return res.status(400).json({ error: "Discount must be between 1 and 100." });
+    }
+
+    if (new Date(end_date) <= new Date(start_date)) {
+      return res.status(400).json({ error: "End date must be after start date." });
+    }
+
+    // Check code uniqueness
+    const existing = await Promotion.findOne({ where: { code } });
+    if (existing) {
+      return res.status(400).json({ error: "Promotion code already exists." });
+    }
+
+    const promo = await Promotion.create({
+      code,
+      discount_percent,
+      start_date,
+      end_date,
+      description: description || null,
+    });
+
+    // Send to subscribed users
+    const subscribers = await User.findAll({
+      where: { promotion_opt_in: 1, status: "Active" },
+      attributes: ["email", "first_name"],
+    });
+
+    if (subscribers.length > 0) {
+      const emailPromises = subscribers.map((u) =>
+        sendEmail(
+          u.email,
+          `Promotion: ${code} - Cinema E-Booking`,
+          `<h2>New Promotion!</h2>
+           <p>Hi ${u.first_name},</p>
+           <p>${description || "Check out our new promotion!"}</p>
+           <p><strong>Code:</strong> ${code}</p>
+           <p><strong>Discount:</strong> ${discount_percent}%</p>
+           <p><strong>Valid:</strong> ${start_date} to ${end_date}</p>`
+        )
+      );
+      await Promise.all(emailPromises);
+      await Promotion.update({ sent: true }, { where: { promotion_id: promo.promotion_id } });
+    }
+
+    res.status(201).json({
+      message: `Promotion created and emailed to ${subscribers.length} subscriber(s).`,
+      promotion: promo,
+    });
+  } catch (err) {
+    console.error("Add promotion error:", err);
+    res.status(500).json({ error: "Failed to add promotion." });
+  }
+});
+
+// ─── Admin: Get Promotions ───
+
+server.get("/api/admin/promotions", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const promos = await Promotion.findAll({ order: [["start_date", "DESC"]] });
+    res.json(promos);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════
+// USER BOOKING ROUTES
+// ═══════════════════════════════════════════════
+
+// ─── Get Ticket Prices ───
+
+server.get("/api/ticket-prices", async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const prices = await TicketPrice.findAll({
+      where: {
+        valid_from: { [Op.lte]: today },
+        [Op.or]: [
+          { valid_to: null },
+          { valid_to: { [Op.gte]: today } },
+        ],
+      },
+    });
+    res.json(prices);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Get Showtimes for a Movie ───
+
+server.get("/api/movies/:id/showtimes", async (req, res) => {
+  try {
+    const showtimes = await Showtime.findAll({
+      where: {
+        movie_id: req.params.id,
+        show_date: { [Op.gte]: new Date().toISOString().split("T")[0] },
+      },
+      include: [{ model: Showroom, attributes: ["showroom_id", "name", "rows", "cols"] }],
+      order: [["show_date", "ASC"], ["show_time", "ASC"]],
+    });
+    res.json(showtimes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Get Booked Seats for a Showtime ───
+
+server.get("/api/showtimes/:id/seats", async (req, res) => {
+  try {
+    const bookings = await Booking.findAll({
+      where: {
+        showtime_id: req.params.id,
+        status: { [Op.in]: ["pending", "confirmed"] },
+      },
+      include: [{ model: BookedSeat, attributes: ["seat_label"] }],
+    });
+
+    const bookedSeats = [];
+    bookings.forEach((b) => {
+      b.BookedSeats.forEach((s) => bookedSeats.push(s.seat_label));
+    });
+
+    res.json({ booked: bookedSeats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Create Booking ───
+
+server.post("/api/bookings", authenticateToken, async (req, res) => {
+  try {
+    const { showtime_id, email, seats } = req.body;
+    // seats: [{ seat_label: "A1", ticket_type: "adult", price: 12.00 }, ...]
+
+    if (!showtime_id || !email || !seats || seats.length === 0) {
+      return res.status(400).json({ error: "Showtime, email, and seats are required." });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Invalid email format." });
+    }
+
+    // Verify showtime exists
+    const showtime = await Showtime.findByPk(showtime_id, {
+      include: [
+        { model: Movie, attributes: ["title"] },
+        { model: Showroom, attributes: ["name"] },
+      ],
+    });
+    if (!showtime) {
+      return res.status(404).json({ error: "Showtime not found." });
+    }
+
+    // Check for already booked seats
+    const seatLabels = seats.map((s) => s.seat_label);
+    const existingBookings = await Booking.findAll({
+      where: {
+        showtime_id,
+        status: { [Op.in]: ["pending", "confirmed"] },
+      },
+      include: [{
+        model: BookedSeat,
+        where: { seat_label: { [Op.in]: seatLabels } },
+        required: true,
+      }],
+    });
+
+    if (existingBookings.length > 0) {
+      const taken = [];
+      existingBookings.forEach((b) => b.BookedSeats.forEach((s) => taken.push(s.seat_label)));
+      return res.status(409).json({ error: `Seats already booked: ${taken.join(", ")}` });
+    }
+
+    // Create booking
+    const booking = await Booking.create({
+      user_id: req.user.user_id,
+      showtime_id,
+      email,
+      status: "pending",
+    });
+
+    // Create booked seats
+    const seatRecords = seats.map((s) => ({
+      booking_id: booking.booking_id,
+      seat_label: s.seat_label,
+      ticket_type: s.ticket_type,
+      price: s.price,
+    }));
+    await BookedSeat.bulkCreate(seatRecords);
+
+    res.status(201).json({
+      message: "Booking created successfully.",
+      booking_id: booking.booking_id,
+    });
+  } catch (err) {
+    console.error("Create booking error:", err);
+    res.status(500).json({ error: "Failed to create booking." });
   }
 });
 

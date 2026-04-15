@@ -3,267 +3,85 @@
   <head>
     <title>Book Tickets</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-        background: #f0f0f0;
-      }
-      .container {
-        max-width: 900px;
-        margin: 0 auto;
-      }
-      .back-link {
-        display: inline-block;
-        margin-bottom: 20px;
-        color: #007bff;
-        text-decoration: none;
-        font-size: 15px;
-      }
-      .back-link:hover {
-        text-decoration: underline;
-      }
-      h1 {
-        text-align: center;
-        color: #333;
-        margin-bottom: 24px;
-      }
-      .section {
-        background: white;
-        padding: 25px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        margin-bottom: 24px;
-      }
-      .section h2 {
-        font-size: 20px;
-        color: #333;
-        border-bottom: 2px solid #007bff;
-        padding-bottom: 10px;
-        margin: 0 0 20px;
-      }
+      body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+      .container { max-width: 900px; margin: 0 auto; }
+      .back-link { display: inline-block; margin-bottom: 20px; color: #007bff; text-decoration: none; font-size: 15px; }
+      .back-link:hover { text-decoration: underline; }
+      h1 { text-align: center; color: #333; margin-bottom: 24px; }
+      .section { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 24px; }
+      .section h2 { font-size: 20px; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin: 0 0 20px; }
+      .booking-summary { display: flex; gap: 20px; flex-wrap: wrap; }
+      .booking-detail { background: #f8f9fa; padding: 12px 20px; border-radius: 6px; border-left: 4px solid #007bff; }
+      .booking-detail .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+      .booking-detail .value { font-size: 18px; font-weight: bold; color: #222; margin-top: 4px; }
+      .ticket-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #eee; }
+      .ticket-row:last-child { border-bottom: none; }
+      .ticket-type { font-size: 16px; font-weight: 600; color: #333; min-width: 80px; }
+      .ticket-price { color: #666; font-size: 14px; min-width: 80px; }
+      .qty-control { display: flex; align-items: center; gap: 14px; }
+      .qty-btn { width: 32px; height: 32px; border: 2px solid #007bff; background: white; color: #007bff; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; line-height: 1; }
+      .qty-btn:hover { background: #007bff; color: white; }
+      .qty-display { font-size: 18px; font-weight: bold; min-width: 24px; text-align: center; }
+      .ticket-subtotal { font-size: 15px; font-weight: 600; min-width: 70px; text-align: right; color: #333; }
+      .screen { background: #007bff; color: white; text-align: center; padding: 8px; border-radius: 4px; margin-bottom: 28px; font-weight: bold; letter-spacing: 3px; font-size: 13px; }
+      .seat-grid { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+      .seat-row { display: flex; align-items: center; gap: 6px; }
+      .row-label { width: 20px; text-align: center; font-weight: bold; color: #666; font-size: 14px; margin-right: 4px; }
+      .seat { width: 32px; height: 28px; border-radius: 6px 6px 2px 2px; cursor: pointer; border: none; font-size: 11px; transition: all 0.15s; }
+      .seat.available { background: #e9ecef; color: #555; }
+      .seat.available:hover { background: #007bff; color: white; transform: scale(1.1); }
+      .seat.selected { background: #28a745; color: white; }
+      .seat.occupied { background: #adb5bd; color: #888; cursor: not-allowed; }
+      .seat-gap { width: 18px; }
+      .legend { display: flex; gap: 24px; margin-top: 20px; justify-content: center; flex-wrap: wrap; }
+      .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; }
+      .legend-swatch { width: 24px; height: 20px; border-radius: 4px 4px 2px 2px; }
+      .order-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; color: #555; border-bottom: 1px solid #eee; }
+      .order-row:last-child { border-bottom: none; }
+      .order-total { display: flex; justify-content: space-between; padding: 14px 0 0; font-size: 20px; font-weight: bold; color: #222; border-top: 2px solid #333; margin-top: 10px; }
+      .checkout-btn { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 20px; transition: background 0.2s; }
+      .checkout-btn:hover:not(:disabled) { background: #0056b3; }
+      .checkout-btn:disabled { background: #adb5bd; cursor: not-allowed; }
+      .checkout-hint { text-align: center; font-size: 13px; color: #888; margin-top: 8px; }
+      .msg { padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
+      .msg-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+      .msg-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 
-      /* Booking details */
-      .booking-summary {
-        display: flex;
-        gap: 20px;
-        flex-wrap: wrap;
-      }
-      .booking-detail {
-        background: #f8f9fa;
-        padding: 12px 20px;
-        border-radius: 6px;
-        border-left: 4px solid #007bff;
-      }
-      .booking-detail .label {
-        font-size: 12px;
-        color: #666;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .booking-detail .value {
-        font-size: 18px;
-        font-weight: bold;
-        color: #222;
-        margin-top: 4px;
-      }
+      /* Modal overlay */
+      .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+      .modal-overlay.active { display: flex; }
+      .modal { background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+      .modal h2 { margin: 0 0 20px; color: #333; font-size: 20px; border-bottom: 2px solid #007bff; padding-bottom: 8px; }
+      .form-group { margin-bottom: 15px; }
+      .form-group label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 14px; }
+      .form-group input { width: 100%; padding: 9px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+      .btn { display: inline-block; padding: 10px 24px; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; color: white; }
+      .btn-primary { background: #007bff; }
+      .btn-primary:hover { background: #0056b3; }
+      .btn-secondary { background: #6c757d; }
+      .btn-secondary:hover { background: #545b62; }
+      .btn-row { display: flex; gap: 10px; margin-top: 15px; }
 
-      /* Ticket rows */
-      .ticket-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 14px 0;
-        border-bottom: 1px solid #eee;
-      }
-      .ticket-row:last-child {
-        border-bottom: none;
-      }
-      .ticket-type {
-        font-size: 16px;
-        font-weight: 600;
-        color: #333;
-        min-width: 80px;
-      }
-      .ticket-price {
-        color: #666;
-        font-size: 14px;
-        min-width: 80px;
-      }
-      .qty-control {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-      }
-      .qty-btn {
-        width: 32px;
-        height: 32px;
-        border: 2px solid #007bff;
-        background: white;
-        color: #007bff;
-        border-radius: 50%;
-        font-size: 18px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-        line-height: 1;
-      }
-      .qty-btn:hover {
-        background: #007bff;
-        color: white;
-      }
-      .qty-display {
-        font-size: 18px;
-        font-weight: bold;
-        min-width: 24px;
-        text-align: center;
-      }
-      .ticket-subtotal {
-        font-size: 15px;
-        font-weight: 600;
-        min-width: 70px;
-        text-align: right;
-        color: #333;
-      }
+      /* Order summary page */
+      .summary-table { width: 100%; font-size: 15px; }
+      .summary-table td { padding: 8px 0; vertical-align: top; }
+      .summary-table td:first-child { color: #666; width: 140px; }
+      .summary-table td:last-child { font-weight: 600; color: #222; }
 
-      /* Seat map */
-      .screen {
-        background: #007bff;
-        color: white;
-        text-align: center;
-        padding: 8px;
-        border-radius: 4px;
-        margin-bottom: 28px;
-        font-weight: bold;
-        letter-spacing: 3px;
-        font-size: 13px;
-      }
-      .seat-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        align-items: center;
-      }
-      .seat-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .row-label {
-        width: 20px;
-        text-align: center;
-        font-weight: bold;
-        color: #666;
-        font-size: 14px;
-        margin-right: 4px;
-      }
-      .seat {
-        width: 32px;
-        height: 28px;
-        border-radius: 6px 6px 2px 2px;
-        cursor: pointer;
-        border: none;
-        font-size: 11px;
-        transition: all 0.15s;
-      }
-      .seat.available {
-        background: #e9ecef;
-        color: #555;
-      }
-      .seat.available:hover {
-        background: #007bff;
-        color: white;
-        transform: scale(1.1);
-      }
-      .seat.selected {
-        background: #28a745;
-        color: white;
-      }
-      .seat.occupied {
-        background: #adb5bd;
-        color: #888;
-        cursor: not-allowed;
-      }
-      .seat-gap {
-        width: 18px;
-      }
-      .legend {
-        display: flex;
-        gap: 24px;
-        margin-top: 20px;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        color: #555;
-      }
-      .legend-swatch {
-        width: 24px;
-        height: 20px;
-        border-radius: 4px 4px 2px 2px;
-      }
-
-      /* Order summary */
-      .order-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 0;
-        font-size: 15px;
-        color: #555;
-        border-bottom: 1px solid #eee;
-      }
-      .order-row:last-child {
-        border-bottom: none;
-      }
-      .order-total {
-        display: flex;
-        justify-content: space-between;
-        padding: 14px 0 0;
-        font-size: 20px;
-        font-weight: bold;
-        color: #222;
-        border-top: 2px solid #333;
-        margin-top: 10px;
-      }
-      .checkout-btn {
-        width: 100%;
-        padding: 14px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-size: 18px;
-        font-weight: bold;
-        cursor: pointer;
-        margin-top: 20px;
-        transition: background 0.2s;
-      }
-      .checkout-btn:hover:not(:disabled) {
-        background: #0056b3;
-      }
-      .checkout-btn:disabled {
-        background: #adb5bd;
-        cursor: not-allowed;
-      }
-      .checkout-hint {
-        text-align: center;
-        font-size: 13px;
-        color: #888;
-        margin-top: 8px;
-      }
+      /* Payment mockup */
+      .payment-mockup { text-align: center; padding: 40px 20px; }
+      .payment-mockup h3 { font-size: 22px; color: #333; margin-bottom: 10px; }
+      .payment-mockup p { color: #666; font-size: 15px; }
+      .payment-fields { max-width: 400px; margin: 20px auto; text-align: left; }
     </style>
   </head>
   <body>
-    <div class="container">
+    <script src="nav.js"></script>
+    <div class="container" id="mainContainer">
       <a class="back-link" href="javascript:history.back()">&#8592; Back</a>
       <h1>Book Tickets</h1>
 
-      <!-- 2.5: Movie and showtime details -->
+      <!-- Step 1: Booking Details -->
       <div class="section">
         <h2>Booking Details</h2>
         <div class="booking-summary">
@@ -273,12 +91,16 @@
           </div>
           <div class="booking-detail">
             <div class="label">Showtime</div>
-            <div class="value" id="showtime">—</div>
+            <div class="value" id="showtimeDisplay">--</div>
+          </div>
+          <div class="booking-detail">
+            <div class="label">Showroom</div>
+            <div class="value" id="showroomDisplay">--</div>
           </div>
         </div>
       </div>
 
-      <!-- 2.5: Ticket quantity inputs with price per category -->
+      <!-- Step 2: Tickets -->
       <div class="section">
         <h2>Tickets</h2>
         <div class="ticket-row">
@@ -313,78 +135,161 @@
         </div>
       </div>
 
-      <!-- 2.5: Seating layout with selectable seats -->
+      <!-- Step 3: Seat Map -->
       <div class="section">
         <h2>Select Seats</h2>
         <div class="screen">SCREEN</div>
-        <div class="seat-grid" id="seatGrid"></div>
+        <div class="seat-grid" id="seatGrid">
+          <p style="color:#666;">Loading seat map...</p>
+        </div>
         <div class="legend">
-          <div class="legend-item">
-            <div class="legend-swatch" style="background: #e9ecef"></div>
-            Available
-          </div>
-          <div class="legend-item">
-            <div class="legend-swatch" style="background: #28a745"></div>
-            Selected
-          </div>
-          <div class="legend-item">
-            <div class="legend-swatch" style="background: #adb5bd"></div>
-            Occupied
-          </div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#e9ecef"></div> Available</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#28a745"></div> Selected</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#adb5bd"></div> Occupied</div>
         </div>
       </div>
 
-      <!-- 2.5: Order summary -->
+      <!-- Step 4: Order Summary -->
       <div class="section">
         <h2>Order Summary</h2>
         <div id="orderLines">
-          <div class="order-row" style="color: #999">No tickets selected.</div>
+          <div class="order-row" style="color:#999">No tickets selected.</div>
         </div>
         <div class="order-total">
-          <span>Total</span>
+          <span>Total (before tax)</span>
           <span id="grandTotal">$0.00</span>
         </div>
-        <button class="checkout-btn" id="checkoutBtn" disabled
-          onclick="alert('Checkout will be available in a future sprint!')">
+        <button class="checkout-btn" id="checkoutBtn" disabled onclick="handleCheckout()">
           Proceed to Checkout
         </button>
-        <p class="checkout-hint" id="checkoutHint">
-          Select tickets and matching seats to continue.
-        </p>
+        <p class="checkout-hint" id="checkoutHint">Select tickets and matching seats to continue.</p>
+      </div>
+    </div>
+
+    <!-- Login Modal (shown if user not logged in at checkout) -->
+    <div class="modal-overlay" id="loginModal">
+      <div class="modal">
+        <h2>Login Required</h2>
+        <p style="margin-bottom:15px;color:#666;">Please log in to continue with your booking. Your seat selection will be preserved.</p>
+        <div id="loginMsg"></div>
+        <form id="loginForm">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPassword" required>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Log In</button>
+            <button type="button" class="btn btn-secondary" onclick="closeLoginModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Email Confirmation Modal -->
+    <div class="modal-overlay" id="emailModal">
+      <div class="modal">
+        <h2>Confirm Email</h2>
+        <p style="margin-bottom:15px;color:#666;">Please confirm or update the email address for your booking confirmation.</p>
+        <div id="emailMsg"></div>
+        <form id="emailForm">
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" id="bookingEmail" required>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Continue to Payment</button>
+            <button type="button" class="btn btn-secondary" onclick="closeEmailModal()">Cancel</button>
+          </div>
+        </form>
       </div>
     </div>
 
     <script>
-      // Read URL params
+      // ──── State ────
       const params = new URLSearchParams(window.location.search);
-      const movieId = params.get("id");
-      const showtime = params.get("showtime");
+      const movieId = params.get('id');
+      const showtimeId = params.get('showtime_id');
+      let prices = { adult: 12, child: 8, senior: 10 }; // defaults, overridden from DB
+      const qty = { adult: 0, child: 0, senior: 0 };
+      const selectedSeats = new Set();
+      let occupiedSeats = new Set();
+      let movieData = null;
+      let showtimeData = null;
+      let seatRows = 8;
+      let seatCols = 10;
 
-      document.getElementById("showtime").textContent = showtime || "—";
+      // ──── Init ────
+      async function init() {
+        if (!movieId || !showtimeId) {
+          document.getElementById('movieTitle').textContent = 'Invalid booking link';
+          return;
+        }
 
-      if (movieId) {
-        fetch("/api/movies/" + movieId)
-          .then((res) => res.json())
-          .then((m) => {
-            document.getElementById("movieTitle").textContent = m.title;
-            document.title = "Book — " + m.title;
-          })
-          .catch(() => {
-            document.getElementById("movieTitle").textContent = "Unknown Movie";
+        // Load ticket prices from DB
+        try {
+          const priceRes = await fetch('/api/ticket-prices');
+          const priceData = await priceRes.json();
+          priceData.forEach(p => {
+            prices[p.ticket_type] = parseFloat(p.base_price);
           });
-      } else {
-        document.getElementById("movieTitle").textContent = "Unknown Movie";
+          // Update displayed prices
+          document.querySelectorAll('.ticket-price').forEach(el => {
+            const type = el.closest('.ticket-row').querySelector('.ticket-type').textContent.toLowerCase();
+            if (prices[type] !== undefined) el.textContent = '$' + prices[type].toFixed(2) + ' each';
+          });
+        } catch {}
+
+        // Load movie details
+        try {
+          const res = await fetch('/api/movies/' + movieId);
+          movieData = await res.json();
+          document.getElementById('movieTitle').textContent = movieData.title;
+          document.title = 'Book — ' + movieData.title;
+        } catch {
+          document.getElementById('movieTitle').textContent = 'Unknown Movie';
+        }
+
+        // Load showtime details (from the movie's showtimes)
+        try {
+          const stRes = await fetch('/api/movies/' + movieId + '/showtimes');
+          const showtimes = await stRes.json();
+          showtimeData = showtimes.find(st => st.showtime_id === parseInt(showtimeId));
+          if (showtimeData) {
+            const d = new Date(showtimeData.show_date + 'T00:00:00');
+            const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+            const [h, m] = showtimeData.show_time.split(':');
+            const hr = parseInt(h);
+            const ampm = hr >= 12 ? 'PM' : 'AM';
+            const hr12 = hr % 12 || 12;
+            const timeStr = hr12 + ':' + m + ' ' + ampm;
+            document.getElementById('showtimeDisplay').textContent = dateStr + ', ' + timeStr;
+            if (showtimeData.Showroom) {
+              document.getElementById('showroomDisplay').textContent = showtimeData.Showroom.name;
+              seatRows = showtimeData.Showroom.rows || 8;
+              seatCols = showtimeData.Showroom.cols || 10;
+            }
+          }
+        } catch {}
+
+        // Load booked seats
+        try {
+          const seatRes = await fetch('/api/showtimes/' + showtimeId + '/seats');
+          const seatData = await seatRes.json();
+          occupiedSeats = new Set(seatData.booked || []);
+        } catch {}
+
+        buildSeatGrid();
       }
 
-      // Ticket logic
-      const prices = { adult: 12, child: 8, senior: 10 };
-      const qty = { adult: 0, child: 0, senior: 0 };
-
+      // ──── Tickets ────
       function changeQty(type, delta) {
         qty[type] = Math.max(0, qty[type] + delta);
-        document.getElementById("qty-" + type).textContent = qty[type];
-        document.getElementById("sub-" + type).textContent =
-          "$" + (qty[type] * prices[type]).toFixed(2);
+        document.getElementById('qty-' + type).textContent = qty[type];
+        document.getElementById('sub-' + type).textContent = '$' + (qty[type] * prices[type]).toFixed(2);
         updateSummary();
       }
 
@@ -392,43 +297,35 @@
         return qty.adult + qty.child + qty.senior;
       }
 
-      // Seat map
-      const ROWS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-      const COLS = 10;
-
-      // Hardcoded occupied seats for prototype
-      const occupied = new Set([
-        "A1", "A2", "A3", "B5", "B6", "C3", "C4", "C5",
-        "D7", "D8", "D9", "E2", "E3", "F6", "F7",
-        "G1", "G2", "G8", "H4", "H5", "H6",
-      ]);
-
-      const selectedSeats = new Set();
-
+      // ──── Seat Map ────
       function buildSeatGrid() {
-        const grid = document.getElementById("seatGrid");
-        for (const row of ROWS) {
-          const rowDiv = document.createElement("div");
-          rowDiv.className = "seat-row";
+        const grid = document.getElementById('seatGrid');
+        grid.innerHTML = '';
+        const rowLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-          const label = document.createElement("div");
-          label.className = "row-label";
-          label.textContent = row;
+        for (let r = 0; r < seatRows; r++) {
+          const rowDiv = document.createElement('div');
+          rowDiv.className = 'seat-row';
+
+          const label = document.createElement('div');
+          label.className = 'row-label';
+          label.textContent = rowLetters[r];
           rowDiv.appendChild(label);
 
-          for (let col = 1; col <= COLS; col++) {
-            // Aisle gap between columns 5 and 6
-            if (col === 6) {
-              const gap = document.createElement("div");
-              gap.className = "seat-gap";
+          for (let c = 1; c <= seatCols; c++) {
+            // Aisle gap in middle
+            if (c === Math.floor(seatCols / 2) + 1) {
+              const gap = document.createElement('div');
+              gap.className = 'seat-gap';
               rowDiv.appendChild(gap);
             }
-            const seatId = row + col;
-            const btn = document.createElement("button");
-            btn.className = "seat " + (occupied.has(seatId) ? "occupied" : "available");
-            btn.textContent = col;
+            const seatId = rowLetters[r] + c;
+            const btn = document.createElement('button');
+            const isOccupied = occupiedSeats.has(seatId);
+            btn.className = 'seat ' + (isOccupied ? 'occupied' : 'available');
+            btn.textContent = c;
             btn.dataset.seat = seatId;
-            btn.disabled = occupied.has(seatId);
+            btn.disabled = isOccupied;
             btn.onclick = () => toggleSeat(btn, seatId);
             rowDiv.appendChild(btn);
           }
@@ -439,14 +336,19 @@
       function toggleSeat(btn, seatId) {
         if (selectedSeats.has(seatId)) {
           selectedSeats.delete(seatId);
-          btn.className = "seat available";
+          btn.className = 'seat available';
         } else {
+          // Prevent selecting more seats than tickets
+          if (totalTickets() > 0 && selectedSeats.size >= totalTickets()) {
+            return; // silently prevent
+          }
           selectedSeats.add(seatId);
-          btn.className = "seat selected";
+          btn.className = 'seat selected';
         }
         updateSummary();
       }
 
+      // ──── Order Summary ────
       function updateSummary() {
         const lines = [];
         let total = 0;
@@ -456,44 +358,242 @@
             const sub = count * prices[type];
             total += sub;
             const label = type.charAt(0).toUpperCase() + type.slice(1);
-            lines.push(
-              `<div class="order-row"><span>${label} &times; ${count}</span><span>$${sub.toFixed(2)}</span></div>`
-            );
+            lines.push(`<div class="order-row"><span>${label} &times; ${count} @ $${prices[type].toFixed(2)}</span><span>$${sub.toFixed(2)}</span></div>`);
           }
         }
 
         if (selectedSeats.size > 0) {
-          lines.push(
-            `<div class="order-row"><span>Seats: ${[...selectedSeats].sort().join(", ")}</span><span></span></div>`
-          );
+          lines.push(`<div class="order-row"><span>Seats: ${[...selectedSeats].sort().join(', ')}</span><span></span></div>`);
         }
 
         if (lines.length === 0) {
           lines.push('<div class="order-row" style="color:#999">No tickets selected.</div>');
         }
 
-        document.getElementById("orderLines").innerHTML = lines.join("");
-        document.getElementById("grandTotal").textContent = "$" + total.toFixed(2);
+        document.getElementById('orderLines').innerHTML = lines.join('');
+        document.getElementById('grandTotal').textContent = '$' + total.toFixed(2);
 
         const tickets = totalTickets();
         const seats = selectedSeats.size;
-        const btn = document.getElementById("checkoutBtn");
-        const hint = document.getElementById("checkoutHint");
+        const btn = document.getElementById('checkoutBtn');
+        const hint = document.getElementById('checkoutHint');
 
         btn.disabled = tickets === 0 || seats !== tickets;
 
         if (tickets === 0) {
-          hint.textContent = "Select tickets and matching seats to continue.";
+          hint.textContent = 'Select tickets and matching seats to continue.';
         } else if (seats < tickets) {
           hint.textContent = `Please select ${tickets - seats} more seat(s).`;
         } else if (seats > tickets) {
           hint.textContent = `Too many seats selected. Deselect ${seats - tickets} seat(s).`;
         } else {
-          hint.textContent = "";
+          hint.textContent = '';
         }
       }
 
-      buildSeatGrid();
+      // ──── Checkout Flow ────
+      function handleCheckout() {
+        const isLoggedIn = !!localStorage.getItem('token');
+        if (!isLoggedIn) {
+          // Show login modal
+          document.getElementById('loginModal').classList.add('active');
+          return;
+        }
+        // Logged in — show email confirmation
+        showEmailModal();
+      }
+
+      // ── Login Modal ──
+      function closeLoginModal() {
+        document.getElementById('loginModal').classList.remove('active');
+        document.getElementById('loginMsg').innerHTML = '';
+      }
+
+      document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msgEl = document.getElementById('loginMsg');
+        msgEl.innerHTML = '';
+
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+
+        try {
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            closeLoginModal();
+            if (typeof loadNav === 'function') loadNav();
+            // Continue to email confirmation
+            showEmailModal();
+          } else {
+            msgEl.innerHTML = `<div class="msg msg-error">${data.error}</div>`;
+          }
+        } catch {
+          msgEl.innerHTML = '<div class="msg msg-error">Login failed. Please try again.</div>';
+        }
+      });
+
+      // ── Email Modal ──
+      function showEmailModal() {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        document.getElementById('bookingEmail').value = user.email || '';
+        document.getElementById('emailModal').classList.add('active');
+      }
+
+      function closeEmailModal() {
+        document.getElementById('emailModal').classList.remove('active');
+        document.getElementById('emailMsg').innerHTML = '';
+      }
+
+      document.getElementById('emailForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('bookingEmail').value.trim();
+        const msgEl = document.getElementById('emailMsg');
+        msgEl.innerHTML = '';
+
+        if (!email) {
+          msgEl.innerHTML = '<div class="msg msg-error">Email is required.</div>';
+          return;
+        }
+
+        closeEmailModal();
+        showOrderSummaryPage(email);
+      });
+
+      // ──── Order Summary Page ────
+      function showOrderSummaryPage(email) {
+        const container = document.getElementById('mainContainer');
+        const movieTitle = movieData ? movieData.title : 'Unknown';
+        const showtimeStr = document.getElementById('showtimeDisplay').textContent;
+        const showroomStr = document.getElementById('showroomDisplay').textContent;
+        const seatsList = [...selectedSeats].sort().join(', ');
+
+        let ticketDetails = '';
+        let total = 0;
+        for (const [type, count] of Object.entries(qty)) {
+          if (count > 0) {
+            const sub = count * prices[type];
+            total += sub;
+            const label = type.charAt(0).toUpperCase() + type.slice(1);
+            ticketDetails += `<tr><td>${label} Ticket(s)</td><td>${count} x $${prices[type].toFixed(2)} = $${sub.toFixed(2)}</td></tr>`;
+          }
+        }
+
+        container.innerHTML = `
+          <a class="back-link" href="javascript:history.back()">&#8592; Back</a>
+          <h1>Order Summary</h1>
+          <div class="section">
+            <h2>Booking Confirmation</h2>
+            <table class="summary-table">
+              <tr><td>Movie</td><td>${movieTitle}</td></tr>
+              <tr><td>Showtime</td><td>${showtimeStr}</td></tr>
+              <tr><td>Showroom</td><td>${showroomStr}</td></tr>
+              <tr><td>Seats</td><td>${seatsList}</td></tr>
+              ${ticketDetails}
+              <tr><td>Total Tickets</td><td>${totalTickets()}</td></tr>
+              <tr style="border-top:2px solid #333;"><td style="font-size:18px;font-weight:bold;padding-top:12px;">Total (before tax)</td><td style="font-size:18px;font-weight:bold;padding-top:12px;">$${total.toFixed(2)}</td></tr>
+            </table>
+            <p style="margin-top:15px;color:#666;">Confirmation email: <strong>${email}</strong></p>
+            <button class="checkout-btn" onclick="proceedToPayment('${email}')">Confirm & Proceed to Payment</button>
+          </div>
+        `;
+      }
+
+      // ──── Payment Mockup Page ────
+      async function proceedToPayment(email) {
+        // Create the booking in the database
+        const seats = [];
+        const seatArray = [...selectedSeats].sort();
+        let typeIndex = 0;
+        const typeOrder = ['adult', 'child', 'senior'];
+
+        // Assign ticket types to seats
+        let seatIdx = 0;
+        for (const type of typeOrder) {
+          for (let i = 0; i < qty[type]; i++) {
+            if (seatIdx < seatArray.length) {
+              seats.push({
+                seat_label: seatArray[seatIdx],
+                ticket_type: type,
+                price: prices[type],
+              });
+              seatIdx++;
+            }
+          }
+        }
+
+        try {
+          const res = await authFetch('/api/bookings', {
+            method: 'POST',
+            body: JSON.stringify({
+              showtime_id: parseInt(showtimeId),
+              email: email,
+              seats: seats,
+            }),
+          });
+
+          if (!res) return;
+          const data = await res.json();
+
+          if (!res.ok) {
+            alert(data.error || 'Booking failed.');
+            return;
+          }
+
+          // Show payment mockup
+          const container = document.getElementById('mainContainer');
+          let total = 0;
+          for (const [type, count] of Object.entries(qty)) {
+            total += count * prices[type];
+          }
+
+          container.innerHTML = `
+            <div class="section" style="margin-top:30px;">
+              <div class="payment-mockup">
+                <h3>Payment Processing</h3>
+                <p style="margin-bottom:25px;">Booking #${data.booking_id} created successfully.</p>
+                <div class="payment-fields">
+                  <div class="form-group">
+                    <label>Card Number</label>
+                    <input type="text" placeholder="**** **** **** ****" disabled style="background:#f8f9fa;">
+                  </div>
+                  <div style="display:flex;gap:15px;">
+                    <div class="form-group" style="flex:1;">
+                      <label>Expiry</label>
+                      <input type="text" placeholder="MM/YY" disabled style="background:#f8f9fa;">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                      <label>CVV</label>
+                      <input type="text" placeholder="***" disabled style="background:#f8f9fa;">
+                    </div>
+                  </div>
+                  <div style="text-align:center;margin-top:20px;">
+                    <p style="font-size:20px;font-weight:bold;color:#222;margin-bottom:15px;">Amount: $${total.toFixed(2)}</p>
+                    <button class="btn btn-primary" disabled style="width:100%;padding:14px;font-size:16px;opacity:0.6;">
+                      Pay Now (Coming in Final Demo)
+                    </button>
+                    <p style="color:#666;font-size:13px;margin-top:10px;">Payment processing will be implemented in the final demo.</p>
+                  </div>
+                </div>
+                <div style="margin-top:30px;">
+                  <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">Return to Home</a>
+                </div>
+              </div>
+            </div>
+          `;
+        } catch (err) {
+          alert('An error occurred while creating the booking.');
+        }
+      }
+
+      // ──── Start ────
+      init();
     </script>
   </body>
 </html>

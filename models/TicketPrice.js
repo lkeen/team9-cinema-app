@@ -1,36 +1,36 @@
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  const Showtime = sequelize.define(
-    "Showtime",
+  const TicketPrice = sequelize.define(
+    "TicketPrice",
     {
-      showtime_id: {
+      price_id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
       },
-      movie_id: {
-        type: DataTypes.INTEGER,
+      ticket_type: {
+        type: DataTypes.ENUM("adult", "child", "senior"),
         allowNull: false,
       },
-      showroom_id: {
-        type: DataTypes.INTEGER,
+      base_price: {
+        type: DataTypes.DECIMAL(6, 2),
         allowNull: false,
       },
-      show_date: {
+      valid_from: {
         type: DataTypes.DATEONLY,
         allowNull: false,
       },
-      show_time: {
-        type: DataTypes.TIME,
-        allowNull: false,
+      valid_to: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
       },
     },
     {
-      tableName: "showtimes",
+      tableName: "ticket_prices",
       timestamps: false,
     }
   );
 
-  return Showtime;
+  return TicketPrice;
 };

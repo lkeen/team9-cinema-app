@@ -209,24 +209,48 @@
           const res = await fetch("/api/movies/" + movieId);
           if (!res.ok) throw new Error("Movie not found");
           const movie = await res.json();
-          renderMovie(movie);
+          await renderMovie(movie);
         } catch (err) {
           document.getElementById("content").innerHTML =
             '<div class="error-msg">Movie not found.</div>';
         }
       }
 
-      function renderMovie(m) {
+      async function renderMovie(m) {
         const statusClass = m.status === "Coming Soon" ? "coming-soon" : "";
 
-        // 2.2: Hardcoded showtimes
-        const showtimes = ["2:00 PM", "5:00 PM", "8:00 PM"];
-        const showtimeButtons = showtimes
-          .map(
-            (t) =>
-              `<button class="showtime-btn" onclick="goToBooking(${m.movie_id}, '${t}')">${t}</button>`,
-          )
-          .join("");
+        // Load showtimes from database
+        let showtimeHtml = '<p style="color:#666;">No showtimes available.</p>';
+        try {
+          const stRes = await fetch('/api/movies/' + m.movie_id + '/showtimes');
+          const showtimes = await stRes.json();
+          if (showtimes.length > 0) {
+            // Group by date
+            const grouped = {};
+            showtimes.forEach(st => {
+              if (!grouped[st.show_date]) grouped[st.show_date] = [];
+              grouped[st.show_date].push(st);
+            });
+            showtimeHtml = '';
+            Object.keys(grouped).sort().forEach(date => {
+              const d = new Date(date + 'T00:00:00');
+              const dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+              showtimeHtml += `<div style="margin-bottom:12px;"><strong style="display:block;margin-bottom:6px;">${dateLabel}</strong><div class="showtimes">`;
+              grouped[date].forEach(st => {
+                const [h, min] = st.show_time.split(':');
+                const hr = parseInt(h);
+                const ampm = hr >= 12 ? 'PM' : 'AM';
+                const hr12 = hr % 12 || 12;
+                const timeStr = hr12 + ':' + min + ' ' + ampm;
+                const roomName = st.Showroom ? st.Showroom.name : '';
+                showtimeHtml += `<button class="showtime-btn" onclick="goToBooking(${m.movie_id}, ${st.showtime_id})" title="${roomName}">${timeStr}<br><span style="font-size:11px;opacity:0.8;">${roomName}</span></button>`;
+              });
+              showtimeHtml += '</div></div>';
+            });
+          }
+        } catch (err) {
+          showtimeHtml = '<p style="color:#dc3545;">Failed to load showtimes.</p>';
+        }
 
         // Build trailer embed
         let trailerHtml;
@@ -281,7 +305,7 @@
 
           <div class="section">
             <h2>Showtimes</h2>
-            <div class="showtimes">${showtimeButtons}</div>
+            ${showtimeHtml}
           </div>
         `;
       }
@@ -313,9 +337,9 @@
         });
       }
 
-      function goToBooking(movieId, showtime) {
+      function goToBooking(movieId, showtimeId) {
         window.location.href =
-          "booking.html?id=" + movieId + "&showtime=" + encodeURIComponent(showtime);
+          "booking.html?id=" + movieId + "&showtime_id=" + showtimeId;
       }
     </script>
   </body>

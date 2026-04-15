@@ -1,36 +1,39 @@
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  const Showtime = sequelize.define(
-    "Showtime",
+  const Showroom = sequelize.define(
+    "Showroom",
     {
-      showtime_id: {
+      showroom_id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
       },
-      movie_id: {
+      name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+      },
+      capacity: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        defaultValue: 80,
       },
-      showroom_id: {
+      rows: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        defaultValue: 8,
       },
-      show_date: {
-        type: DataTypes.DATEONLY,
+      cols: {
+        type: DataTypes.INTEGER,
         allowNull: false,
-      },
-      show_time: {
-        type: DataTypes.TIME,
-        allowNull: false,
+        defaultValue: 10,
       },
     },
     {
-      tableName: "showtimes",
+      tableName: "showrooms",
       timestamps: false,
     }
   );
 
-  return Showtime;
+  return Showroom;
 };

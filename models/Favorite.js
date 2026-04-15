@@ -4,29 +4,20 @@ module.exports = (sequelize) => {
   const Favorite = sequelize.define(
     "Favorite",
     {
-      favorite_id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-      },
       user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        primaryKey: true,
       },
       movie_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        primaryKey: true,
       },
     },
     {
       tableName: "favorites",
       timestamps: false,
-      indexes: [
-        {
-          unique: true,
-          fields: ["user_id", "movie_id"],
-        },
-      ],
     }
   );
 

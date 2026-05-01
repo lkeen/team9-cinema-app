@@ -155,8 +155,10 @@
         <div id="orderLines">
           <div class="order-row" style="color:#999">No tickets selected.</div>
         </div>
+        <div class="order-row"><span>Subtotal</span><span id="subtotalAmt">$0.00</span></div>
+        <div class="order-row"><span>Tax (8%)</span><span id="taxAmt">$0.00</span></div>
         <div class="order-total">
-          <span>Total (before tax)</span>
+          <span>Total</span>
           <span id="grandTotal">$0.00</span>
         </div>
         <button class="checkout-btn" id="checkoutBtn" disabled onclick="handleCheckout()">
@@ -213,6 +215,7 @@
       const params = new URLSearchParams(window.location.search);
       const movieId = params.get('id');
       const showtimeId = params.get('showtime_id');
+      const TAX_RATE = 0.08;
       let prices = { adult: 12, child: 8, senior: 10 }; // defaults, overridden from DB
       const qty = { adult: 0, child: 0, senior: 0 };
       const selectedSeats = new Set();
@@ -221,6 +224,7 @@
       let showtimeData = null;
       let seatRows = 8;
       let seatCols = 10;
+      let savedCards = [];
 
       // ──── Init ────
       async function init() {
@@ -370,8 +374,13 @@
           lines.push('<div class="order-row" style="color:#999">No tickets selected.</div>');
         }
 
+        const tax = Math.round(total * TAX_RATE * 100) / 100;
+        const grand = Math.round((total + tax) * 100) / 100;
+
         document.getElementById('orderLines').innerHTML = lines.join('');
-        document.getElementById('grandTotal').textContent = '$' + total.toFixed(2);
+        document.getElementById('subtotalAmt').textContent = '$' + total.toFixed(2);
+        document.getElementById('taxAmt').textContent = '$' + tax.toFixed(2);
+        document.getElementById('grandTotal').textContent = '$' + grand.toFixed(2);
 
         const tickets = totalTickets();
         const seats = selectedSeats.size;
@@ -466,8 +475,8 @@
         showOrderSummaryPage(email);
       });
 
-      // ──── Order Summary Page ────
-      function showOrderSummaryPage(email) {
+      // ──── Order Summary + Payment Page ────
+      async function showOrderSummaryPage(email) {
         const container = document.getElementById('mainContainer');
         const movieTitle = movieData ? movieData.title : 'Unknown';
         const showtimeStr = document.getElementById('showtimeDisplay').textContent;
@@ -475,45 +484,161 @@
         const seatsList = [...selectedSeats].sort().join(', ');
 
         let ticketDetails = '';
-        let total = 0;
+        let subtotal = 0;
         for (const [type, count] of Object.entries(qty)) {
           if (count > 0) {
             const sub = count * prices[type];
-            total += sub;
+            subtotal += sub;
             const label = type.charAt(0).toUpperCase() + type.slice(1);
-            ticketDetails += `<tr><td>${label} Ticket(s)</td><td>${count} x $${prices[type].toFixed(2)} = $${sub.toFixed(2)}</td></tr>`;
+            ticketDetails += `<tr><td>${label} Ticket(s)</td><td>${count} &times; $${prices[type].toFixed(2)} = $${sub.toFixed(2)}</td></tr>`;
           }
         }
 
+        const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+        const total = Math.round((subtotal + tax) * 100) / 100;
+
+        // Load saved cards
+        try {
+          const res = await authFetch('/api/profile');
+          if (res && res.ok) {
+            const profile = await res.json();
+            savedCards = profile.cards || [];
+          }
+        } catch { savedCards = []; }
+
+        let cardOptionsHtml = '';
+        if (savedCards.length > 0) {
+          cardOptionsHtml = savedCards.map((c, i) => `
+            <label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px;cursor:pointer;">
+              <input type="radio" name="cardChoice" value="${c.card_id}" ${i === 0 ? 'checked' : ''}>
+              <span><strong>${c.card_type}</strong> ending in ${c.last_four} &middot; ${c.name_on_card} &middot; Exp ${c.expiry_date}</span>
+            </label>
+          `).join('');
+          cardOptionsHtml += `
+            <label style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:8px;cursor:pointer;">
+              <input type="radio" name="cardChoice" value="new" onchange="toggleNewCardFields(true)">
+              <span>Use a different card</span>
+            </label>
+          `;
+        }
+
+        const newCardDisplay = savedCards.length > 0 ? 'none' : 'block';
+        const saveCheckboxHtml = `
+          <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="payCardSave" style="width:auto;">
+            <label for="payCardSave" style="font-weight:normal;margin:0;">Save this card to my profile (max 3)</label>
+          </div>
+        `;
+
         container.innerHTML = `
           <a class="back-link" href="javascript:history.back()">&#8592; Back</a>
-          <h1>Order Summary</h1>
+          <h1>Confirm & Pay</h1>
           <div class="section">
-            <h2>Booking Confirmation</h2>
+            <h2>Order Summary</h2>
             <table class="summary-table">
               <tr><td>Movie</td><td>${movieTitle}</td></tr>
               <tr><td>Showtime</td><td>${showtimeStr}</td></tr>
               <tr><td>Showroom</td><td>${showroomStr}</td></tr>
               <tr><td>Seats</td><td>${seatsList}</td></tr>
               ${ticketDetails}
-              <tr><td>Total Tickets</td><td>${totalTickets()}</td></tr>
-              <tr style="border-top:2px solid #333;"><td style="font-size:18px;font-weight:bold;padding-top:12px;">Total (before tax)</td><td style="font-size:18px;font-weight:bold;padding-top:12px;">$${total.toFixed(2)}</td></tr>
+              <tr><td>Subtotal</td><td>$${subtotal.toFixed(2)}</td></tr>
+              <tr><td>Tax (8%)</td><td>$${tax.toFixed(2)}</td></tr>
+              <tr style="border-top:2px solid #333;"><td style="font-size:18px;font-weight:bold;padding-top:12px;">Total</td><td style="font-size:18px;font-weight:bold;padding-top:12px;">$${total.toFixed(2)}</td></tr>
             </table>
             <p style="margin-top:15px;color:#666;">Confirmation email: <strong>${email}</strong></p>
-            <button class="checkout-btn" onclick="proceedToPayment('${email}')">Confirm & Proceed to Payment</button>
+          </div>
+          <div class="section">
+            <h2>Payment Information</h2>
+            <div id="payMsg"></div>
+            ${cardOptionsHtml ? '<div style="margin-bottom:15px;">' + cardOptionsHtml + '</div>' : ''}
+            <div id="newCardFields" style="display:${newCardDisplay};">
+              <div class="form-group">
+                <label>Card Type</label>
+                <select id="payCardType">
+                  <option value="">Select...</option>
+                  <option value="Visa">Visa</option>
+                  <option value="Mastercard">Mastercard</option>
+                  <option value="Amex">American Express</option>
+                  <option value="Discover">Discover</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Card Number</label>
+                <input type="text" id="payCardNumber" maxlength="19" placeholder="1234 5678 9012 3456">
+              </div>
+              <div style="display:flex;gap:15px;">
+                <div class="form-group" style="flex:1;">
+                  <label>Expiry (MM/YY)</label>
+                  <input type="text" id="payCardExpiry" maxlength="5" placeholder="MM/YY">
+                </div>
+                <div class="form-group" style="flex:1;">
+                  <label>CVV</label>
+                  <input type="text" id="payCardCvv" maxlength="4" placeholder="***">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Name on Card</label>
+                <input type="text" id="payCardName">
+              </div>
+              ${saveCheckboxHtml}
+            </div>
+            <button class="checkout-btn" id="payNowBtn" onclick="submitPayment('${email.replace(/'/g, "\\'")}', ${subtotal}, ${tax}, ${total})">
+              Pay $${total.toFixed(2)}
+            </button>
           </div>
         `;
       }
 
-      // ──── Payment Mockup Page ────
-      async function proceedToPayment(email) {
-        // Create the booking in the database
+      function toggleNewCardFields(show) {
+        document.getElementById('newCardFields').style.display = show ? 'block' : 'none';
+      }
+
+      // Wire up radio change for the card selection
+      document.addEventListener('change', (e) => {
+        if (e.target.name === 'cardChoice') {
+          toggleNewCardFields(e.target.value === 'new');
+        }
+      });
+
+      async function submitPayment(email, subtotal, tax, total) {
+        const msgEl = document.getElementById('payMsg');
+        const btn = document.getElementById('payNowBtn');
+        msgEl.innerHTML = '';
+
+        // Build payment object
+        const cardChoice = document.querySelector('input[name="cardChoice"]:checked');
+        let payment = null;
+        if (cardChoice && cardChoice.value !== 'new') {
+          payment = { card_id: parseInt(cardChoice.value) };
+        } else {
+          const cardType = document.getElementById('payCardType').value;
+          const cardNumber = document.getElementById('payCardNumber').value.trim();
+          const cardExpiry = document.getElementById('payCardExpiry').value.trim();
+          const cardCvv = document.getElementById('payCardCvv').value.trim();
+          const cardName = document.getElementById('payCardName').value.trim();
+          const save = document.getElementById('payCardSave').checked;
+
+          if (!cardType || !cardNumber || !cardExpiry || !cardCvv || !cardName) {
+            msgEl.innerHTML = '<div class="msg msg-error">Please fill in all card fields.</div>';
+            return;
+          }
+          if (!/^\d{3,4}$/.test(cardCvv)) {
+            msgEl.innerHTML = '<div class="msg msg-error">Invalid CVV.</div>';
+            return;
+          }
+          payment = {
+            cardType,
+            cardNumber,
+            expiryDate: cardExpiry,
+            nameOnCard: cardName,
+            save,
+          };
+        }
+
+        // Build seats
         const seats = [];
         const seatArray = [...selectedSeats].sort();
-        let typeIndex = 0;
         const typeOrder = ['adult', 'child', 'senior'];
-
-        // Assign ticket types to seats
         let seatIdx = 0;
         for (const type of typeOrder) {
           for (let i = 0; i < qty[type]; i++) {
@@ -528,68 +653,62 @@
           }
         }
 
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+
         try {
           const res = await authFetch('/api/bookings', {
             method: 'POST',
             body: JSON.stringify({
               showtime_id: parseInt(showtimeId),
-              email: email,
-              seats: seats,
+              email,
+              seats,
+              payment,
             }),
           });
-
           if (!res) return;
           const data = await res.json();
-
           if (!res.ok) {
-            alert(data.error || 'Booking failed.');
+            msgEl.innerHTML = `<div class="msg msg-error">${data.error || 'Payment failed.'}</div>`;
+            btn.disabled = false;
+            btn.textContent = 'Pay $' + total.toFixed(2);
             return;
           }
-
-          // Show payment mockup
-          const container = document.getElementById('mainContainer');
-          let total = 0;
-          for (const [type, count] of Object.entries(qty)) {
-            total += count * prices[type];
-          }
-
-          container.innerHTML = `
-            <div class="section" style="margin-top:30px;">
-              <div class="payment-mockup">
-                <h3>Payment Processing</h3>
-                <p style="margin-bottom:25px;">Booking #${data.booking_id} created successfully.</p>
-                <div class="payment-fields">
-                  <div class="form-group">
-                    <label>Card Number</label>
-                    <input type="text" placeholder="**** **** **** ****" disabled style="background:#f8f9fa;">
-                  </div>
-                  <div style="display:flex;gap:15px;">
-                    <div class="form-group" style="flex:1;">
-                      <label>Expiry</label>
-                      <input type="text" placeholder="MM/YY" disabled style="background:#f8f9fa;">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                      <label>CVV</label>
-                      <input type="text" placeholder="***" disabled style="background:#f8f9fa;">
-                    </div>
-                  </div>
-                  <div style="text-align:center;margin-top:20px;">
-                    <p style="font-size:20px;font-weight:bold;color:#222;margin-bottom:15px;">Amount: $${total.toFixed(2)}</p>
-                    <button class="btn btn-primary" disabled style="width:100%;padding:14px;font-size:16px;opacity:0.6;">
-                      Pay Now (Coming in Final Demo)
-                    </button>
-                    <p style="color:#666;font-size:13px;margin-top:10px;">Payment processing will be implemented in the final demo.</p>
-                  </div>
-                </div>
-                <div style="margin-top:30px;">
-                  <a href="index.html" class="btn btn-secondary" style="text-decoration:none;">Return to Home</a>
-                </div>
-              </div>
-            </div>
-          `;
+          showConfirmationPage(data, email, seats, subtotal, tax, total);
         } catch (err) {
-          alert('An error occurred while creating the booking.');
+          msgEl.innerHTML = '<div class="msg msg-error">Something went wrong. Please try again.</div>';
+          btn.disabled = false;
+          btn.textContent = 'Pay $' + total.toFixed(2);
         }
+      }
+
+      function showConfirmationPage(data, email, seats, subtotal, tax, total) {
+        const container = document.getElementById('mainContainer');
+        const movieTitle = movieData ? movieData.title : 'Unknown';
+        const showtimeStr = document.getElementById('showtimeDisplay') ? document.getElementById('showtimeDisplay').textContent : '';
+        const seatsList = seats.map(s => `${s.seat_label} (${s.ticket_type})`).join(', ');
+        container.innerHTML = `
+          <h1>Booking Confirmed</h1>
+          <div class="section">
+            <div style="text-align:center;padding:20px;">
+              <div style="font-size:48px;color:#28a745;">&#10004;</div>
+              <h2 style="border:none;color:#28a745;">Thank you!</h2>
+              <p style="color:#666;">Confirmation #${data.booking_id} &middot; A receipt has been emailed to <strong>${email}</strong>.</p>
+            </div>
+            <table class="summary-table">
+              <tr><td>Movie</td><td>${movieTitle}</td></tr>
+              <tr><td>Showtime</td><td>${showtimeStr}</td></tr>
+              <tr><td>Seats</td><td>${seatsList}</td></tr>
+              <tr><td>Subtotal</td><td>$${subtotal.toFixed(2)}</td></tr>
+              <tr><td>Tax</td><td>$${tax.toFixed(2)}</td></tr>
+              <tr style="border-top:2px solid #333;"><td style="font-size:18px;font-weight:bold;padding-top:12px;">Total Charged</td><td style="font-size:18px;font-weight:bold;padding-top:12px;">$${total.toFixed(2)}</td></tr>
+            </table>
+            <div style="margin-top:25px;display:flex;gap:10px;justify-content:center;">
+              <a href="index.html" class="btn btn-primary" style="text-decoration:none;">Browse More Movies</a>
+              <a href="edit-profile.html" class="btn btn-secondary" style="text-decoration:none;">View Order History</a>
+            </div>
+          </div>
+        `;
       }
 
       // ──── Start ────

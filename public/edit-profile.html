@@ -193,6 +193,12 @@
         <h2>My Favorites</h2>
         <div id="favoritesList"></div>
       </div>
+
+      <!-- Order History -->
+      <div class="section">
+        <h2>Order History</h2>
+        <div id="orderList"><p class="no-items">Loading...</p></div>
+      </div>
     </div>
 
     <script>
@@ -207,6 +213,7 @@
       document.addEventListener('DOMContentLoaded', () => {
         loadProfile();
         loadFavorites();
+        loadOrders();
       });
 
       function showSectionAlert(id, message, type) {
@@ -510,6 +517,64 @@
           loadFavorites();
         } catch (err) {
           console.error('Remove favorite error:', err);
+        }
+      }
+
+      // ─── Order History ───
+
+      async function loadOrders() {
+        const container = document.getElementById('orderList');
+        try {
+          const res = await authFetch('/api/orders');
+          if (!res) return;
+          const orders = await res.json();
+          if (!orders.length) {
+            container.innerHTML = '<p class="no-items">No bookings yet.</p>';
+            return;
+          }
+
+          container.innerHTML = orders.map(o => {
+            const dateStr = o.show_date
+              ? new Date(o.show_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+              : '';
+            let timeStr = '';
+            if (o.show_time) {
+              const [h, m] = o.show_time.split(':');
+              const hr = parseInt(h);
+              const ampm = hr >= 12 ? 'PM' : 'AM';
+              const hr12 = hr % 12 || 12;
+              timeStr = `${hr12}:${m} ${ampm}`;
+            }
+            const orderDateStr = o.order_date
+              ? new Date(o.order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : '';
+            const seatsStr = o.seats.map(s => `${s.seat_label} (${s.ticket_type} $${s.price.toFixed(2)})`).join(', ');
+            const cardStr = o.payment && o.payment.card_type
+              ? `${o.payment.card_type} ****${o.payment.last_four}`
+              : 'Card';
+
+            return `
+              <div style="background:#f8f9fa;padding:15px;border-radius:6px;margin-bottom:12px;border-left:4px solid #007bff;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+                  <div>
+                    <div style="font-size:16px;font-weight:bold;">${o.movie.title || 'Movie'}</div>
+                    <div style="color:#666;font-size:13px;">${dateStr}${timeStr ? ' &middot; ' + timeStr : ''}${o.showroom_name ? ' &middot; ' + o.showroom_name : ''}</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-weight:bold;">$${o.total.toFixed(2)}</div>
+                    <div style="color:#666;font-size:12px;">Order #${o.order_id} &middot; ${orderDateStr}</div>
+                  </div>
+                </div>
+                <div style="margin-top:10px;font-size:13px;color:#444;">
+                  <div><strong>Seats:</strong> ${seatsStr}</div>
+                  <div><strong>Subtotal:</strong> $${o.subtotal.toFixed(2)} &middot; <strong>Tax:</strong> $${o.tax_amount.toFixed(2)} &middot; <strong>Paid via:</strong> ${cardStr}</div>
+                  <div style="margin-top:4px;"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#28a745;color:white;text-transform:uppercase;">${o.status}</span></div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } catch (err) {
+          container.innerHTML = '<p style="color:#dc3545;">Failed to load order history.</p>';
         }
       }
     </script>

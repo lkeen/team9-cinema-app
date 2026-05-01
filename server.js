@@ -141,6 +141,45 @@ function passwordChangeEmail(name) {
     <p>If you did not make this change, please contact support immediately.</p>`;
 }
 
+function promotionEmail(name, promo) {
+  return `<h2>Promotion: ${promo.code}</h2>
+    <p>Hi ${name},</p>
+    <p>${promo.description || "Check out our latest promotion!"}</p>
+    <p><strong>Code:</strong> ${promo.code}</p>
+    <p><strong>Discount:</strong> ${promo.discount_percent}%</p>
+    <p><strong>Valid:</strong> ${promo.start_date} to ${promo.end_date}</p>`;
+}
+
+function orderConfirmationEmail(name, info) {
+  const seatRows = info.seats
+    .map(
+      (s) =>
+        `<tr><td>${s.seat_label}</td><td>${s.ticket_type}</td><td style="text-align:right;">$${Number(s.price).toFixed(2)}</td></tr>`
+    )
+    .join("");
+  return `<h2>Booking Confirmed!</h2>
+    <p>Hi ${name}, thanks for your purchase. Here are your booking details:</p>
+    <p><strong>Confirmation #:</strong> ${info.bookingId}</p>
+    <p><strong>Movie:</strong> ${info.movieTitle}<br>
+    <strong>Showroom:</strong> ${info.showroomName}<br>
+    <strong>Date:</strong> ${info.showDate}<br>
+    <strong>Time:</strong> ${info.showTime}</p>
+    <table style="border-collapse:collapse;width:100%;max-width:400px;">
+      <thead><tr><th align="left">Seat</th><th align="left">Type</th><th align="right">Price</th></tr></thead>
+      <tbody>${seatRows}</tbody>
+    </table>
+    <p style="margin-top:12px;">
+      Subtotal: $${info.subtotal.toFixed(2)}<br>
+      Tax: $${info.tax.toFixed(2)}<br>
+      <strong>Total: $${info.total.toFixed(2)}</strong>
+    </p>
+    <p>Card charged: ${info.cardType} ending in ${info.lastFour}</p>
+    <p>Show this email at the door, or look up your bookings under "Order History" in your profile.</p>`;
+}
+
+// ─── Pricing Constants ───
+const TAX_RATE = 0.08;
+
 // ═══════════════════════════════════════════════
 // MOVIE ROUTES
 // ═══════════════════════════════════════════════
@@ -1051,6 +1090,91 @@ server.get("/api/admin/showtimes", authenticateToken, requireAdmin, async (req, 
   }
 });
 
+// ─── Admin: Update Showtime ───
+
+server.put("/api/admin/showtimes/:id", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { movie_id, showroom_id, show_date, show_time } = req.body;
+
+    if (!movie_id || !showroom_id || !show_date || !show_time) {
+      return res.status(400).json({ error: "Movie, showroom, date, and time are all required." });
+    }
+
+    const existing = await Showtime.findByPk(id);
+    if (!existing) {
+      return res.status(404).json({ error: "Showtime not found." });
+    }
+
+    const movie = await Movie.findByPk(movie_id);
+    if (!movie) {
+      return res.status(404).json({ error: "Movie not found." });
+    }
+    const showroom = await Showroom.findByPk(showroom_id);
+    if (!showroom) {
+      return res.status(404).json({ error: "Showroom not found." });
+    }
+
+    // Check conflict against a different showtime
+    const conflict = await Showtime.findOne({
+      where: {
+        showroom_id,
+        show_date,
+        show_time,
+        showtime_id: { [Op.ne]: id },
+      },
+    });
+    if (conflict) {
+      const conflictMovie = await Movie.findByPk(conflict.movie_id, { attributes: ["title"] });
+      return res.status(409).json({
+        error: `Scheduling conflict: ${showroom.name} already has "${conflictMovie.title}" scheduled at that date and time.`,
+      });
+    }
+
+    await Showtime.update(
+      { movie_id, showroom_id, show_date, show_time },
+      { where: { showtime_id: id } }
+    );
+
+    res.json({ message: "Showtime updated successfully." });
+  } catch (err) {
+    console.error("Update showtime error:", err);
+    res.status(500).json({ error: "Failed to update showtime." });
+  }
+});
+
+// ─── Admin: Delete Showtime ───
+
+server.delete("/api/admin/showtimes/:id", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await Showtime.findByPk(id);
+    if (!existing) {
+      return res.status(404).json({ error: "Showtime not found." });
+    }
+
+    // Block delete if there are active bookings
+    const activeBookings = await Booking.count({
+      where: {
+        showtime_id: id,
+        status: { [Op.in]: ["pending", "confirmed"] },
+      },
+    });
+    if (activeBookings > 0) {
+      return res.status(409).json({
+        error: `Cannot delete: ${activeBookings} active booking(s) exist for this showtime.`,
+      });
+    }
+
+    await Showtime.destroy({ where: { showtime_id: id } });
+    res.json({ message: "Showtime deleted successfully." });
+  } catch (err) {
+    console.error("Delete showtime error:", err);
+    res.status(500).json({ error: "Failed to delete showtime." });
+  }
+});
+
 // ─── Admin: Add Promotion (Bonus) ───
 
 server.post("/api/admin/promotions", authenticateToken, requireAdmin, async (req, res) => {
@@ -1094,12 +1218,7 @@ server.post("/api/admin/promotions", authenticateToken, requireAdmin, async (req
         sendEmail(
           u.email,
           `Promotion: ${code} - Cinema E-Booking`,
-          `<h2>New Promotion!</h2>
-           <p>Hi ${u.first_name},</p>
-           <p>${description || "Check out our new promotion!"}</p>
-           <p><strong>Code:</strong> ${code}</p>
-           <p><strong>Discount:</strong> ${discount_percent}%</p>
-           <p><strong>Valid:</strong> ${start_date} to ${end_date}</p>`
+          promotionEmail(u.first_name, promo)
         )
       );
       await Promise.all(emailPromises);
@@ -1124,6 +1243,49 @@ server.get("/api/admin/promotions", authenticateToken, requireAdmin, async (req,
     res.json(promos);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Admin: Send Existing Promotion ───
+
+server.post("/api/admin/promotions/:id/send", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const promo = await Promotion.findByPk(id);
+    if (!promo) {
+      return res.status(404).json({ error: "Promotion not found." });
+    }
+
+    const subscribers = await User.findAll({
+      where: { promotion_opt_in: 1, status: "Active" },
+      attributes: ["email", "first_name"],
+    });
+
+    if (subscribers.length === 0) {
+      return res.json({ message: "No subscribed users to email.", count: 0 });
+    }
+
+    const emailPromises = subscribers.map((u) =>
+      sendEmail(
+        u.email,
+        `Promotion: ${promo.code} - Cinema E-Booking`,
+        promotionEmail(u.first_name, promo)
+      )
+    );
+    await Promise.all(emailPromises);
+
+    if (!promo.sent) {
+      await Promotion.update({ sent: true }, { where: { promotion_id: id } });
+    }
+
+    res.json({
+      message: `Sent to ${subscribers.length} subscriber(s).`,
+      count: subscribers.length,
+    });
+  } catch (err) {
+    console.error("Send promotion error:", err);
+    res.status(500).json({ error: "Failed to send promotion." });
   }
 });
 
@@ -1192,20 +1354,29 @@ server.get("/api/showtimes/:id/seats", async (req, res) => {
   }
 });
 
-// ─── Create Booking ───
+// ─── Create Booking (full checkout: seats + pricing + payment + email) ───
 
 server.post("/api/bookings", authenticateToken, async (req, res) => {
+  const t = await sequelize.transaction();
   try {
-    const { showtime_id, email, seats } = req.body;
+    const { showtime_id, email, seats, payment } = req.body;
     // seats: [{ seat_label: "A1", ticket_type: "adult", price: 12.00 }, ...]
+    // payment: either { card_id: 5 } for a saved card,
+    //          or { cardType, cardNumber, expiryDate, nameOnCard, save? } for a new card
 
     if (!showtime_id || !email || !seats || seats.length === 0) {
+      await t.rollback();
       return res.status(400).json({ error: "Showtime, email, and seats are required." });
     }
 
-    // Validate email format
+    if (!payment || (!payment.card_id && !payment.cardNumber)) {
+      await t.rollback();
+      return res.status(400).json({ error: "Payment information is required." });
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      await t.rollback();
       return res.status(400).json({ error: "Invalid email format." });
     }
 
@@ -1217,6 +1388,7 @@ server.post("/api/bookings", authenticateToken, async (req, res) => {
       ],
     });
     if (!showtime) {
+      await t.rollback();
       return res.status(404).json({ error: "Showtime not found." });
     }
 
@@ -1237,16 +1409,75 @@ server.post("/api/bookings", authenticateToken, async (req, res) => {
     if (existingBookings.length > 0) {
       const taken = [];
       existingBookings.forEach((b) => b.BookedSeats.forEach((s) => taken.push(s.seat_label)));
+      await t.rollback();
       return res.status(409).json({ error: `Seats already booked: ${taken.join(", ")}` });
     }
 
-    // Create booking
-    const booking = await Booking.create({
-      user_id: req.user.user_id,
-      showtime_id,
-      email,
-      status: "pending",
-    });
+    // Resolve payment card
+    let cardId = null;
+    let cardType = null;
+    let lastFour = null;
+
+    if (payment.card_id) {
+      const savedCard = await PaymentCard.findOne({
+        where: { card_id: payment.card_id, user_id: req.user.user_id },
+      });
+      if (!savedCard) {
+        await t.rollback();
+        return res.status(404).json({ error: "Saved card not found." });
+      }
+      cardId = savedCard.card_id;
+      cardType = savedCard.card_type;
+      lastFour = savedCard.last_four;
+    } else {
+      // New card details
+      const { cardType: ct, cardNumber, expiryDate, nameOnCard, save } = payment;
+      if (!ct || !cardNumber || !expiryDate || !nameOnCard) {
+        await t.rollback();
+        return res.status(400).json({ error: "All card fields are required." });
+      }
+      const cleanNumber = String(cardNumber).replace(/\s/g, "");
+      if (!/^\d{13,19}$/.test(cleanNumber)) {
+        await t.rollback();
+        return res.status(400).json({ error: "Invalid card number." });
+      }
+      cardType = ct;
+      lastFour = cleanNumber.slice(-4);
+
+      if (save) {
+        const count = await PaymentCard.count({ where: { user_id: req.user.user_id } });
+        if (count < 3) {
+          const newCard = await PaymentCard.create(
+            {
+              user_id: req.user.user_id,
+              card_type: ct,
+              card_number_encrypted: encrypt(cleanNumber),
+              last_four: lastFour,
+              expiry_date: expiryDate,
+              name_on_card: nameOnCard,
+            },
+            { transaction: t }
+          );
+          cardId = newCard.card_id;
+        }
+      }
+    }
+
+    // Calculate totals
+    const subtotal = seats.reduce((sum, s) => sum + Number(s.price), 0);
+    const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+    const total = Math.round((subtotal + tax) * 100) / 100;
+
+    // Create booking (confirmed since payment succeeds in this mock)
+    const booking = await Booking.create(
+      {
+        user_id: req.user.user_id,
+        showtime_id,
+        email,
+        status: "confirmed",
+      },
+      { transaction: t }
+    );
 
     // Create booked seats
     const seatRecords = seats.map((s) => ({
@@ -1255,15 +1486,158 @@ server.post("/api/bookings", authenticateToken, async (req, res) => {
       ticket_type: s.ticket_type,
       price: s.price,
     }));
-    await BookedSeat.bulkCreate(seatRecords);
+    await BookedSeat.bulkCreate(seatRecords, { transaction: t });
+
+    // Create order
+    const order = await Order.create(
+      {
+        user_id: req.user.user_id,
+        booking_id: booking.booking_id,
+        promotion_id: null,
+        subtotal,
+        discount_amount: 0,
+        tax_amount: tax,
+        total,
+        status: "completed",
+      },
+      { transaction: t }
+    );
+
+    // Create payment
+    await Payment.create(
+      {
+        order_id: order.order_id,
+        card_id: cardId,
+        amount: total,
+        status: "completed",
+        transaction_ref: `TXN-${Date.now()}-${booking.booking_id}`,
+      },
+      { transaction: t }
+    );
+
+    await t.commit();
+
+    // Send confirmation email (after commit so we don't block)
+    const user = await User.findOne({
+      where: { user_id: req.user.user_id },
+      attributes: ["first_name"],
+    });
+    const [h, m] = showtime.show_time.split(":");
+    const hr = parseInt(h);
+    const ampm = hr >= 12 ? "PM" : "AM";
+    const hr12 = hr % 12 || 12;
+    const showTimeStr = `${hr12}:${m} ${ampm}`;
+    const showDateStr = new Date(showtime.show_date + "T00:00:00").toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+
+    sendEmail(
+      email,
+      `Booking Confirmation #${booking.booking_id} - Cinema E-Booking`,
+      orderConfirmationEmail(user ? user.first_name : "there", {
+        bookingId: booking.booking_id,
+        movieTitle: showtime.Movie.title,
+        showroomName: showtime.Showroom.name,
+        showDate: showDateStr,
+        showTime: showTimeStr,
+        seats,
+        subtotal,
+        tax,
+        total,
+        cardType,
+        lastFour,
+      })
+    );
 
     res.status(201).json({
-      message: "Booking created successfully.",
+      message: "Booking confirmed.",
       booking_id: booking.booking_id,
+      order_id: order.order_id,
+      subtotal,
+      tax,
+      total,
     });
   } catch (err) {
+    try { await t.rollback(); } catch {}
     console.error("Create booking error:", err);
     res.status(500).json({ error: "Failed to create booking." });
+  }
+});
+
+// ─── Order History ───
+
+server.get("/api/orders", authenticateToken, async (req, res) => {
+  try {
+    const orders = await Order.findAll({
+      where: { user_id: req.user.user_id },
+      order: [["order_date", "DESC"]],
+      include: [
+        {
+          model: Booking,
+          include: [
+            { model: BookedSeat },
+            {
+              model: Showtime,
+              include: [
+                { model: Movie, attributes: ["movie_id", "title", "poster"] },
+                { model: Showroom, attributes: ["name"] },
+              ],
+            },
+          ],
+        },
+        {
+          model: Payment,
+          attributes: ["payment_id", "amount", "status", "transaction_ref", "payment_date"],
+          include: [{ model: PaymentCard, attributes: ["card_type", "last_four"] }],
+        },
+      ],
+    });
+
+    const result = orders.map((o) => {
+      const plain = o.get({ plain: true });
+      const booking = plain.Booking || {};
+      const showtime = booking.Showtime || {};
+      const movie = showtime.Movie || {};
+      const showroom = showtime.Showroom || {};
+      const payment = (plain.Payments && plain.Payments[0]) || null;
+      return {
+        order_id: plain.order_id,
+        order_date: plain.order_date,
+        subtotal: Number(plain.subtotal),
+        tax_amount: Number(plain.tax_amount),
+        total: Number(plain.total),
+        status: plain.status,
+        booking_id: booking.booking_id,
+        booking_status: booking.status,
+        movie: { movie_id: movie.movie_id, title: movie.title, poster: movie.poster },
+        showroom_name: showroom.name,
+        show_date: showtime.show_date,
+        show_time: showtime.show_time,
+        seats: (booking.BookedSeats || []).map((s) => ({
+          seat_label: s.seat_label,
+          ticket_type: s.ticket_type,
+          price: Number(s.price),
+        })),
+        payment: payment
+          ? {
+              status: payment.status,
+              amount: Number(payment.amount),
+              transaction_ref: payment.transaction_ref,
+              card_type: payment.PaymentCard ? payment.PaymentCard.card_type : null,
+              last_four: payment.PaymentCard ? payment.PaymentCard.last_four : null,
+            }
+          : null,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Get orders error:", err);
+    res.status(500).json({ error: "Failed to load order history." });
   }
 });
 

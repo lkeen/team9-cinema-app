@@ -270,32 +270,109 @@
         }
       }
 
+      let showtimeCache = [];
+
       async function loadShowtimeList() {
         const el = document.getElementById('showtimeList');
         try {
           const res = await authFetch('/api/admin/showtimes');
           if (!res) return;
           const data = await res.json();
+          showtimeCache = data;
           if (data.length === 0) {
             el.innerHTML = '<p style="color:#666;">No showtimes scheduled yet.</p>';
             return;
           }
-          let html = `<table><thead><tr><th>Movie</th><th>Showroom</th><th>Date</th><th>Time</th></tr></thead><tbody>`;
+          let html = `<table><thead><tr><th>Movie</th><th>Showroom</th><th>Date</th><th>Time</th><th>Actions</th></tr></thead><tbody>`;
           data.forEach(st => {
             const d = new Date(st.show_date + 'T00:00:00');
             const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-            // Format time from HH:MM:SS to 12-hour
             const [h, m] = st.show_time.split(':');
             const hr = parseInt(h);
             const ampm = hr >= 12 ? 'PM' : 'AM';
             const hr12 = hr % 12 || 12;
             const timeStr = `${hr12}:${m} ${ampm}`;
-            html += `<tr><td>${st.Movie ? st.Movie.title : 'N/A'}</td><td>${st.Showroom ? st.Showroom.name : 'N/A'}</td><td>${dateStr}</td><td>${timeStr}</td></tr>`;
+            html += `<tr id="strow-${st.showtime_id}">
+              <td>${st.Movie ? st.Movie.title : 'N/A'}</td>
+              <td>${st.Showroom ? st.Showroom.name : 'N/A'}</td>
+              <td>${dateStr}</td>
+              <td>${timeStr}</td>
+              <td>
+                <button class="btn btn-primary" style="padding:5px 12px;font-size:13px;" onclick="editShowtime(${st.showtime_id})">Edit</button>
+                <button class="btn" style="background:#dc3545;padding:5px 12px;font-size:13px;" onclick="deleteShowtime(${st.showtime_id})">Delete</button>
+              </td>
+            </tr>`;
           });
           html += '</tbody></table>';
           el.innerHTML = html;
         } catch {
           el.innerHTML = '<p style="color:#dc3545;">Failed to load showtimes.</p>';
+        }
+      }
+
+      function editShowtime(id) {
+        const st = showtimeCache.find(s => s.showtime_id === id);
+        if (!st) return;
+        const row = document.getElementById('strow-' + id);
+        const movieOpts = allMovies.map(m => `<option value="${m.movie_id}" ${m.movie_id === st.movie_id ? 'selected' : ''}>${m.title}</option>`).join('');
+        const roomOpts = allShowrooms.map(r => `<option value="${r.showroom_id}" ${r.showroom_id === st.showroom_id ? 'selected' : ''}>${r.name}</option>`).join('');
+        const timeShort = st.show_time.slice(0, 5);
+        row.innerHTML = `
+          <td><select id="estMovie-${id}" style="width:100%;padding:6px;">${movieOpts}</select></td>
+          <td><select id="estRoom-${id}" style="width:100%;padding:6px;">${roomOpts}</select></td>
+          <td><input id="estDate-${id}" type="date" value="${st.show_date}" style="width:100%;padding:6px;"></td>
+          <td><input id="estTime-${id}" type="time" value="${timeShort}" style="width:100%;padding:6px;"></td>
+          <td>
+            <button class="btn btn-primary" style="padding:5px 12px;font-size:13px;" onclick="saveShowtimeEdit(${id})">Save</button>
+            <button class="btn" style="background:#6c757d;padding:5px 12px;font-size:13px;" onclick="loadShowtimeList()">Cancel</button>
+          </td>
+        `;
+      }
+
+      async function saveShowtimeEdit(id) {
+        const body = {
+          movie_id: parseInt(document.getElementById('estMovie-' + id).value),
+          showroom_id: parseInt(document.getElementById('estRoom-' + id).value),
+          show_date: document.getElementById('estDate-' + id).value,
+          show_time: document.getElementById('estTime-' + id).value,
+        };
+        const msgEl = document.getElementById('stMsg');
+        msgEl.innerHTML = '';
+        try {
+          const res = await authFetch('/api/admin/showtimes/' + id, {
+            method: 'PUT',
+            body: JSON.stringify(body),
+          });
+          if (!res) return;
+          const data = await res.json();
+          if (res.ok) {
+            msgEl.innerHTML = `<div class="msg msg-success">${data.message}</div>`;
+            loadShowtimeList();
+          } else {
+            msgEl.innerHTML = `<div class="msg msg-error">${data.error}</div>`;
+            loadShowtimeList();
+          }
+        } catch {
+          msgEl.innerHTML = '<div class="msg msg-error">Failed to update showtime.</div>';
+        }
+      }
+
+      async function deleteShowtime(id) {
+        if (!confirm('Delete this showtime?')) return;
+        const msgEl = document.getElementById('stMsg');
+        msgEl.innerHTML = '';
+        try {
+          const res = await authFetch('/api/admin/showtimes/' + id, { method: 'DELETE' });
+          if (!res) return;
+          const data = await res.json();
+          if (res.ok) {
+            msgEl.innerHTML = `<div class="msg msg-success">${data.message}</div>`;
+            loadShowtimeList();
+          } else {
+            msgEl.innerHTML = `<div class="msg msg-error">${data.error}</div>`;
+          }
+        } catch {
+          msgEl.innerHTML = '<div class="msg msg-error">Failed to delete showtime.</div>';
         }
       }
 
@@ -374,14 +451,40 @@
             el.innerHTML = '<p style="color:#666;">No promotions yet.</p>';
             return;
           }
-          let html = '<table><thead><tr><th>Code</th><th>Discount</th><th>Start</th><th>End</th><th>Sent</th></tr></thead><tbody>';
+          let html = '<table><thead><tr><th>Code</th><th>Discount</th><th>Start</th><th>End</th><th>Sent</th><th>Actions</th></tr></thead><tbody>';
           data.forEach(p => {
-            html += `<tr><td><strong>${p.code}</strong></td><td>${p.discount_percent}%</td><td>${p.start_date}</td><td>${p.end_date}</td><td>${p.sent ? 'Yes' : 'No'}</td></tr>`;
+            html += `<tr>
+              <td><strong>${p.code}</strong></td>
+              <td>${p.discount_percent}%</td>
+              <td>${p.start_date}</td>
+              <td>${p.end_date}</td>
+              <td>${p.sent ? 'Yes' : 'No'}</td>
+              <td><button class="btn btn-primary" style="padding:5px 12px;font-size:13px;" onclick="sendPromo(${p.promotion_id})">Send</button></td>
+            </tr>`;
           });
           html += '</tbody></table>';
           el.innerHTML = html;
         } catch {
           el.innerHTML = '<p style="color:#dc3545;">Failed to load promotions.</p>';
+        }
+      }
+
+      async function sendPromo(id) {
+        if (!confirm('Send this promotion to all subscribed users?')) return;
+        const msgEl = document.getElementById('promoMsg');
+        msgEl.innerHTML = '';
+        try {
+          const res = await authFetch('/api/admin/promotions/' + id + '/send', { method: 'POST' });
+          if (!res) return;
+          const data = await res.json();
+          if (res.ok) {
+            msgEl.innerHTML = `<div class="msg msg-success">${data.message}</div>`;
+            loadPromoList();
+          } else {
+            msgEl.innerHTML = `<div class="msg msg-error">${data.error}</div>`;
+          }
+        } catch {
+          msgEl.innerHTML = '<div class="msg msg-error">Failed to send promotion.</div>';
         }
       }
 

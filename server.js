@@ -91,6 +91,19 @@ function authenticateToken(req, res, next) {
   }
 }
 
+function optionalUser(req) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) return null;
+
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
 // ─── Email Setup ───
 
 const transporter = nodemailer.createTransport({
@@ -220,6 +233,122 @@ server.get("/api/movies/:id", async (req, res) => {
     res.json(movie);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+server.get("/api/movies/:id/recommendations", async (req, res) => {
+  try {
+    const selectedMovie = await Movie.findByPk(req.params.id);
+
+    if (!selectedMovie) {
+      return res.status(404).json({ error: "Movie not found" });
+    }
+
+    const movies = await Movie.findAll({
+      where: { movie_id: { [Op.ne]: selectedMovie.movie_id } },
+      attributes: ["movie_id", "title", "genre", "rating", "status", "description"],
+    });
+
+    const user = optionalUser(req);
+    let favorites = [];
+    if (user) {
+      favorites = await Favorite.findAll({
+        where: { user_id: user.user_id },
+        include: [{ model: Movie, attributes: ["title", "genre"] }],
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "Gemini API key is not configured." });
+    }
+
+    const favoriteSummary = favorites
+      .map((f) => `${f.Movie.title} (${f.Movie.genre})`)
+      .join(", ") || "No favorites yet";
+    const prompt = `You are a cinema recommendation assistant.
+Return only valid JSON with this exact shape:
+[
+  {"movie_id": 1, "reason": "one short customer-friendly sentence"}
+]
+
+Customer is viewing:
+${JSON.stringify({
+  movie_id: selectedMovie.movie_id,
+  title: selectedMovie.title,
+  genre: selectedMovie.genre,
+  rating: selectedMovie.rating,
+  status: selectedMovie.status,
+  description: selectedMovie.description,
+})}
+
+Customer favorites:
+${favoriteSummary}
+
+Available movies:
+${JSON.stringify(movies.map((m) => ({
+  movie_id: m.movie_id,
+  title: m.title,
+  genre: m.genre,
+  rating: m.rating,
+  status: m.status,
+  description: m.description,
+})))}
+
+Recommend exactly 3 movies from Available movies.`;
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-2.5-flash"}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": process.env.GEMINI_API_KEY,
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    if (!geminiRes.ok) {
+      const errorText = await geminiRes.text();
+      console.error("Gemini API error:", errorText);
+      return res.status(502).json({ error: "Gemini failed to generate recommendations." });
+    }
+
+    const geminiData = await geminiRes.json();
+    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+    let parsed;
+    try {
+      parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+    } catch (parseErr) {
+      console.error("Gemini JSON parse error:", parseErr.message);
+      return res.status(502).json({ error: "Gemini returned invalid recommendations." });
+    }
+    const byId = new Map(movies.map((movie) => [movie.movie_id, movie]));
+    const recommendations = parsed
+      .map((item) => {
+        const movie = byId.get(Number(item.movie_id));
+        if (!movie) return null;
+        return {
+          movie_id: movie.movie_id,
+          title: movie.title,
+          genre: movie.genre,
+          rating: movie.rating,
+          status: movie.status,
+          reason: item.reason || "Recommended by Gemini.",
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 3);
+
+    res.json({
+      source: "Gemini",
+      recommendations,
+    });
+  } catch (err) {
+    console.error("Recommendation error:", err);
+    res.status(500).json({ error: "Failed to load recommendations." });
   }
 });
 
